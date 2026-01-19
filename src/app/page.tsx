@@ -4,7 +4,9 @@ export default function HomePage() {
       <h1>Project KPI Tracker</h1>
       <p>Status: UI up</p>
       <ul>
-        <li><a href="/health">Health</a></li>
+        <li>
+          <a href="/health">Health</a>
+        </li>
       </ul>
     </main>
   );
