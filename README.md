@@ -26,5 +26,18 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 - Format: `npm run format` (Prettier)
 
 Recommended before pushing:
+
 - `npm run lint`
 - `npm run format`
+
+## Database (PostgreSQL via Docker)
+
+1. Copy env template:
+
+- Create `.env` from `.env.example`
+
+2. Start DB:
+
+```bash
+docker compose up -d
+```
