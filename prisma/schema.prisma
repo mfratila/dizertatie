@@ -7,16 +7,157 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  ADMIN
+  PM
+  MEMBER
+  VIEWER
+}
+
+enum ProjectStatus {
+  PLANNED
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+enum KpiType {
+  CPI
+  SPI
+  BURN_RATE
+}
+
+enum KpiStatus {
+  GREEN
+  YELLOW
+  RED
+}
+
 model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique
+  name      String
   password  String
-  role      String
+  role      Role     @default(MEMBER)
   createdAt DateTime @default(now())
+
+  memberships ProjectMember[]
+  timesheets  Timesheet[]
 }
 
 model Project {
+  id            Int           @id @default(autoincrement())
+  name          String        @unique
+  startDate     DateTime
+  endDate       DateTime
+  plannedBudget Decimal       @db.Decimal(12, 2)
+  status        ProjectStatus @default(PLANNED)
+  createdAt     DateTime      @default(now())
+
+  members        ProjectMember[]
+  workItems      WorkItem[]
+  costEntries    CostEntry[]
+  baselines      Baseline[]
+  kpiDefinitions KPIDefinition[]
+  kpiSnapshots   KPISnapshot[]
+}
+
+model ProjectMember {
+  id            Int      @id @default(autoincrement())
+  projectId     Int
+  userId        Int
+  roleInProject Role     @default(MEMBER)
+  createdAt     DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([userId])
+}
+
+model WorkItem {
+  id             Int      @id @default(autoincrement())
+  projectId      Int
+  name           String
+  plannedEndDate DateTime
+  progressPercent Int     @default(0)
+  createdAt      DateTime @default(now())
+
+  project   Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  timesheets Timesheet[]
+
+  @@index([projectId])
+}
+
+model Timesheet {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  workItemId Int
+  date       DateTime
+  hours      Decimal  @db.Decimal(6, 2)
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workItem WorkItem @relation(fields: [workItemId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@index([workItemId, date])
+}
+
+model CostEntry {
   id        Int      @id @default(autoincrement())
-  name      String   @unique
+  projectId Int
+  date      DateTime
+  amount    Decimal  @db.Decimal(12, 2)
   createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, date])
+}
+
+model Baseline {
+  id               Int      @id @default(autoincrement())
+  projectId        Int
+  plannedValueTotal Decimal @db.Decimal(12, 2)
+  startDate        DateTime
+  endDate          DateTime
+  createdAt        DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model KPIDefinition {
+  id              Int      @id @default(autoincrement())
+  projectId       Int
+  type            KpiType
+  thresholdGreen  Decimal  @db.Decimal(8, 4)
+  thresholdYellow Decimal  @db.Decimal(8, 4)
+  createdAt       DateTime @default(now())
+
+  project    Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  snapshots  KPISnapshot[]
+
+  @@unique([projectId, type])
+  @@index([projectId])
+}
+
+model KPISnapshot {
+  id              Int      @id @default(autoincrement())
+  projectId       Int
+  kpiDefinitionId Int
+  value           Decimal  @db.Decimal(12, 6)
+  status          KpiStatus
+  computedAt      DateTime
+  createdAt       DateTime @default(now())
+
+  project       Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  kpiDefinition KPIDefinition @relation(fields: [kpiDefinitionId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, computedAt])
+  @@index([kpiDefinitionId, computedAt])
 }
