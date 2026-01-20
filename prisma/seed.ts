@@ -1,36 +1,29 @@
-import {
-  PrismaClient,
-  Prisma,
-  Role,
-  ProjectStatus,
-  KpiType,
-  KpiStatus,
-} from "@prisma/client";
+import { PrismaClient, Prisma, Role, ProjectStatus, KpiType, KpiStatus } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
 async function main() {
   // --- Demo constants (MVP) ---
-  const ADMIN_EMAIL = "admin@demo.local";
-  const PM_EMAIL = "pm@demo.local";
-  const PROJECT_NAME = "Project Alpha";
+  const ADMIN_EMAIL = 'admin@demo.local';
+  const PM_EMAIL = 'pm@demo.local';
+  const PROJECT_NAME = 'Project Alpha';
 
   // Deterministic timeframe for demo
-  const projectStart = new Date("2026-01-01T00:00:00.000Z");
-  const projectEnd = new Date("2026-03-31T00:00:00.000Z");
+  const projectStart = new Date('2026-01-01T00:00:00.000Z');
+  const projectEnd = new Date('2026-03-31T00:00:00.000Z');
 
   // 1) Users
   const admin = await prisma.user.upsert({
     where: { email: ADMIN_EMAIL },
     update: {
-      name: "Admin Demo",
-      password: "admin123",
+      name: 'Admin Demo',
+      password: 'admin123',
       role: Role.ADMIN,
     },
     create: {
       email: ADMIN_EMAIL,
-      name: "Admin Demo",
-      password: "admin123",
+      name: 'Admin Demo',
+      password: 'admin123',
       role: Role.ADMIN,
     },
   });
@@ -38,14 +31,14 @@ async function main() {
   const pm = await prisma.user.upsert({
     where: { email: PM_EMAIL },
     update: {
-      name: "Project Manager Demo",
-      password: "pm123",
+      name: 'Project Manager Demo',
+      password: 'pm123',
       role: Role.PM,
     },
     create: {
       email: PM_EMAIL,
-      name: "Project Manager Demo",
-      password: "pm123",
+      name: 'Project Manager Demo',
+      password: 'pm123',
       role: Role.PM,
     },
   });
@@ -56,14 +49,14 @@ async function main() {
     update: {
       startDate: projectStart,
       endDate: projectEnd,
-      plannedBudget: new Prisma.Decimal("100000.00"), // BAC
+      plannedBudget: new Prisma.Decimal('100000.00'), // BAC
       status: ProjectStatus.ACTIVE,
     },
     create: {
       name: PROJECT_NAME,
       startDate: projectStart,
       endDate: projectEnd,
-      plannedBudget: new Prisma.Decimal("100000.00"), // BAC
+      plannedBudget: new Prisma.Decimal('100000.00'), // BAC
       status: ProjectStatus.ACTIVE,
     },
   });
@@ -127,7 +120,7 @@ async function main() {
   await prisma.baseline.create({
     data: {
       projectId: project.id,
-      plannedValueTotal: new Prisma.Decimal("100000.00"),
+      plannedValueTotal: new Prisma.Decimal('100000.00'),
       startDate: projectStart,
       endDate: projectEnd,
     },
@@ -137,8 +130,8 @@ async function main() {
   const workItem1 = await prisma.workItem.create({
     data: {
       projectId: project.id,
-      name: "Design & Planning",
-      plannedEndDate: new Date("2026-01-31T00:00:00.000Z"),
+      name: 'Design & Planning',
+      plannedEndDate: new Date('2026-01-31T00:00:00.000Z'),
       progressPercent: 60,
     },
   });
@@ -146,8 +139,8 @@ async function main() {
   const workItem2 = await prisma.workItem.create({
     data: {
       projectId: project.id,
-      name: "Implementation",
-      plannedEndDate: new Date("2026-03-15T00:00:00.000Z"),
+      name: 'Implementation',
+      plannedEndDate: new Date('2026-03-15T00:00:00.000Z'),
       progressPercent: 20,
     },
   });
@@ -158,20 +151,20 @@ async function main() {
       {
         userId: pm.id,
         workItemId: workItem1.id,
-        date: new Date("2026-01-10T00:00:00.000Z"),
-        hours: new Prisma.Decimal("6.00"),
+        date: new Date('2026-01-10T00:00:00.000Z'),
+        hours: new Prisma.Decimal('6.00'),
       },
       {
         userId: pm.id,
         workItemId: workItem2.id,
-        date: new Date("2026-01-12T00:00:00.000Z"),
-        hours: new Prisma.Decimal("4.00"),
+        date: new Date('2026-01-12T00:00:00.000Z'),
+        hours: new Prisma.Decimal('4.00'),
       },
       {
         userId: pm.id,
         workItemId: workItem1.id,
-        date: new Date("2026-01-15T00:00:00.000Z"),
-        hours: new Prisma.Decimal("3.50"),
+        date: new Date('2026-01-15T00:00:00.000Z'),
+        hours: new Prisma.Decimal('3.50'),
       },
     ],
   });
@@ -180,8 +173,8 @@ async function main() {
   await prisma.costEntry.create({
     data: {
       projectId: project.id,
-      date: new Date("2026-01-12T00:00:00.000Z"),
-      amount: new Prisma.Decimal("1500.00"),
+      date: new Date('2026-01-12T00:00:00.000Z'),
+      amount: new Prisma.Decimal('1500.00'),
     },
   });
 
@@ -191,14 +184,14 @@ async function main() {
       projectId_type: { projectId: project.id, type: KpiType.CPI },
     },
     update: {
-      thresholdGreen: new Prisma.Decimal("1.00"),
-      thresholdYellow: new Prisma.Decimal("0.90"),
+      thresholdGreen: new Prisma.Decimal('1.00'),
+      thresholdYellow: new Prisma.Decimal('0.90'),
     },
     create: {
       projectId: project.id,
       type: KpiType.CPI,
-      thresholdGreen: new Prisma.Decimal("1.00"),
-      thresholdYellow: new Prisma.Decimal("0.90"),
+      thresholdGreen: new Prisma.Decimal('1.00'),
+      thresholdYellow: new Prisma.Decimal('0.90'),
     },
   });
 
@@ -208,18 +201,18 @@ async function main() {
     data: {
       projectId: project.id,
       kpiDefinitionId: cpiDef.id,
-      value: new Prisma.Decimal("0.95"),
+      value: new Prisma.Decimal('0.95'),
       status: KpiStatus.YELLOW,
-      computedAt: new Date("2026-01-13T00:00:00.000Z"),
+      computedAt: new Date('2026-01-13T00:00:00.000Z'),
     },
   });
 
-  console.log("Seed completed: EPIC 2 demo domain data (incl. Baseline + KPISnapshot).");
+  console.log('Seed completed: EPIC 2 demo domain data (incl. Baseline + KPISnapshot).');
 }
 
 main()
   .catch((e) => {
-    console.error("Seed failed:", e);
+    console.error('Seed failed:', e);
     process.exit(1);
   })
   .finally(async () => {

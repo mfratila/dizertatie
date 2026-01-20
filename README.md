@@ -168,11 +168,12 @@ Recommended before pushing:
 
 **EPIC 1 — Project Foundation & Environment: DONE**
 
-
 # Capitolul 3 — Modelul de date (MVP)
 
 ## 3.1. Scop și principii de modelare
+
 Modelul de date a fost proiectat pentru a susține un MVP al unui sistem informatic de monitorizare a performanței proiectelor bazat pe KPI, cu accent pe:
+
 - colectarea datelor de execuție (timp și cost),
 - definirea unui baseline (referință planificată),
 - definirea KPI-urilor și stocarea istoricului (snapshot-uri),
@@ -184,17 +185,17 @@ Modelul este construit în jurul entității **Project**, care agregă execuția
 
 ## 3.2. Dicționar de date (entitate → descriere → relații)
 
-| Entitate | Descriere (rol în domeniu) | Relații (cardinalități) |
-|---|---|---|
-| **User** | Utilizator al sistemului (ex. admin, project manager). Poate înregistra timp și poate face parte din proiecte. | 1—N cu **Timesheet**; N—M cu **Project** prin **ProjectMember** |
-| **Project** | Unitatea centrală de monitorizare: interval, buget planificat (BAC), status. Agregă datele de execuție și KPI. | 1—N cu **WorkItem**, **CostEntry**, **Baseline**, **KPIDefinition**, **KPISnapshot**; N—M cu **User** prin **ProjectMember** |
-| **ProjectMember** | Entitate de asociere User–Project, necesară pentru relația N—M și atribute pe relație (rol în proiect). | N—1 către **User** și N—1 către **Project**; constrângere unică (projectId, userId) |
-| **WorkItem** | Activitate/Task din proiect. Permite urmărirea execuției și asocierea pontajului (Timesheet). | N—1 către **Project**; 1—N către **Timesheet** |
-| **Timesheet** | Înregistrare de timp lucrat (actual), asociată unui utilizator și unei activități. | N—1 către **User**; N—1 către **WorkItem** |
-| **CostEntry** | Înregistrare de cost real (actual), la nivel de proiect (ex. cheltuieli, servicii). | N—1 către **Project** |
-| **Baseline** | Referință planificată aprobată: plannedValueTotal (PV total) și interval de valabilitate. | N—1 către **Project** |
-| **KPIDefinition** | Definiție KPI per proiect (ex. CPI), cu praguri (green/yellow) pentru status. | N—1 către **Project**; 1—N către **KPISnapshot**; unicitate (projectId, type) |
-| **KPISnapshot** | Valoare KPI calculată la un moment în timp (istoric), cu status și timestamp de calcul. | N—1 către **Project**; N—1 către **KPIDefinition** |
+| Entitate          | Descriere (rol în domeniu)                                                                                     | Relații (cardinalități)                                                                                                      |
+| ----------------- | -------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| **User**          | Utilizator al sistemului (ex. admin, project manager). Poate înregistra timp și poate face parte din proiecte. | 1—N cu **Timesheet**; N—M cu **Project** prin **ProjectMember**                                                              |
+| **Project**       | Unitatea centrală de monitorizare: interval, buget planificat (BAC), status. Agregă datele de execuție și KPI. | 1—N cu **WorkItem**, **CostEntry**, **Baseline**, **KPIDefinition**, **KPISnapshot**; N—M cu **User** prin **ProjectMember** |
+| **ProjectMember** | Entitate de asociere User–Project, necesară pentru relația N—M și atribute pe relație (rol în proiect).        | N—1 către **User** și N—1 către **Project**; constrângere unică (projectId, userId)                                          |
+| **WorkItem**      | Activitate/Task din proiect. Permite urmărirea execuției și asocierea pontajului (Timesheet).                  | N—1 către **Project**; 1—N către **Timesheet**                                                                               |
+| **Timesheet**     | Înregistrare de timp lucrat (actual), asociată unui utilizator și unei activități.                             | N—1 către **User**; N—1 către **WorkItem**                                                                                   |
+| **CostEntry**     | Înregistrare de cost real (actual), la nivel de proiect (ex. cheltuieli, servicii).                            | N—1 către **Project**                                                                                                        |
+| **Baseline**      | Referință planificată aprobată: plannedValueTotal (PV total) și interval de valabilitate.                      | N—1 către **Project**                                                                                                        |
+| **KPIDefinition** | Definiție KPI per proiect (ex. CPI), cu praguri (green/yellow) pentru status.                                  | N—1 către **Project**; 1—N către **KPISnapshot**; unicitate (projectId, type)                                                |
+| **KPISnapshot**   | Valoare KPI calculată la un moment în timp (istoric), cu status și timestamp de calcul.                        | N—1 către **Project**; N—1 către **KPIDefinition**                                                                           |
 
 ---
 
@@ -299,3 +300,4 @@ erDiagram
     datetime computedAt
     datetime createdAt
   }
+```
