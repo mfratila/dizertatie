@@ -41,3 +41,18 @@ Recommended before pushing:
 ```bash
 docker compose up -d
 ```
+
+## Demo Seed Data (Development Only)
+
+For demo and testing purposes, the database is seeded with:
+
+Admin user:
+- Email: admin@demo.local
+- Password: admin123
+- Role: ADMIN
+
+Demo project:
+- Name: Project Alpha
+
+⚠️ Note: These credentials are for development/demo only.
+Authentication is not implemented in the MVP and will be addressed in later iterations.

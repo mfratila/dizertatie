@@ -9,6 +9,7 @@ export async function GET() {
         await prisma.$queryRaw`SELECT 1`;
     } catch (error) {
         dbStatus = 'down';
+        console.log(error);
     }
 
     return NextResponse.json({
