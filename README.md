@@ -1,24 +1,148 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-## Getting Started
+---
 
-First, run the development server:
+## Local Development — One-command run
+
+This section describes how to run the project locally from scratch. Following these steps allows any evaluator or developer to reproduce the demo environment without additional setup.
+
+---
+
+## Prerequisites
+
+Make sure the following tools are installed:
+
+- **Node.js** >= 18
+- **Docker Desktop** (with Docker Compose enabled)
+
+Verify installation:
+
+```bash
+node -v
+docker --version
+docker compose version
+```
+
+---
+
+## Environment variables
+
+The application uses environment variables for database configuration.
+
+1. Create a local environment file:
+
+```bash
+cp .env.example .env
+```
+
+2. No additional changes are required for local development when using Docker Compose.
+
+---
+
+## Start the application (local)
+
+Run the following commands **in order**, from the project root:
+
+### 1. Start PostgreSQL database
+
+```bash
+docker compose up -d
+```
+
+This starts a local PostgreSQL instance with persistent storage.
+
+---
+
+### 2. Install dependencies
+
+```bash
+npm install
+```
+
+---
+
+### 3. Run database migrations
+
+```bash
+npx prisma migrate dev
+```
+
+This creates the database schema based on Prisma migrations.
+
+---
+
+### 4. Seed demo data
+
+```bash
+npx prisma db seed
+```
+
+This inserts:
+
+- one **admin user** (demo only)
+- one **sample project** ("Project Alpha")
+
+---
+
+### 5. Start the development server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The application will be available at:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
+
+## Verification — Health Check
+
+To verify that both the application and the database are running correctly, open:
+
+```
+http://localhost:3000/api/health
+```
+
+Expected response when the database is reachable:
+
+```json
+{
+  "status": "ok",
+  "db": "ok"
+}
+```
+
+If the database is not reachable, the response will be:
+
+```json
+{
+  "status": "ok",
+  "db": "down"
+}
+```
+
+---
+
+## Demo Seed Data (Development Only)
+
+For demo and testing purposes, the database is seeded with the following data:
+
+### Admin user
+
+- Email: `admin@demo.local`
+- Password: `admin123`
+- Role: `ADMIN`
+
+### Demo project
+
+- Name: `Project Alpha`
+
+> ⚠️ **Important:** These credentials are intended **only for development and demo purposes**. Authentication is not implemented in the MVP and will be addressed in later iterations.
+
+---
 
 ## Code quality
 
@@ -30,31 +154,16 @@ Recommended before pushing:
 - `npm run lint`
 - `npm run format`
 
-## Database (PostgreSQL via Docker)
+---
 
-1. Copy env template:
+## Notes
 
-- Create `.env` from `.env.example`
+- PostgreSQL is managed via Docker Compose.
+- All database schema changes are handled through Prisma migrations.
+- The project is designed to be fully reproducible by following the steps above.
 
-2. Start DB:
+---
 
-```bash
-docker compose up -d
-```
+## Status
 
-## Demo Seed Data (Development Only)
-
-For demo and testing purposes, the database is seeded with:
-
-Admin user:
-
-- Email: admin@demo.local
-- Password: admin123
-- Role: ADMIN
-
-Demo project:
-
-- Name: Project Alpha
-
-⚠️ Note: These credentials are for development/demo only.
-Authentication is not implemented in the MVP and will be addressed in later iterations.
+**EPIC 1 — Project Foundation & Environment: DONE**
