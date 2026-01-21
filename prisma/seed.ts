@@ -1,4 +1,5 @@
 import { PrismaClient, Prisma, Role, ProjectStatus, KpiType, KpiStatus } from '@prisma/client';
+import bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
@@ -11,19 +12,22 @@ async function main() {
   // Deterministic timeframe for demo
   const projectStart = new Date('2026-01-01T00:00:00.000Z');
   const projectEnd = new Date('2026-03-31T00:00:00.000Z');
+  const adminPasswordHash = await bcrypt.hash('admin123', 10);
+  const pmPasswordHash = await bcrypt.hash('pm123', 10);
+
 
   // 1) Users
   const admin = await prisma.user.upsert({
     where: { email: ADMIN_EMAIL },
     update: {
       name: 'Admin Demo',
-      password: 'admin123',
+      password: adminPasswordHash,
       role: Role.ADMIN,
     },
     create: {
       email: ADMIN_EMAIL,
       name: 'Admin Demo',
-      password: 'admin123',
+      password: adminPasswordHash,
       role: Role.ADMIN,
     },
   });
@@ -32,13 +36,13 @@ async function main() {
     where: { email: PM_EMAIL },
     update: {
       name: 'Project Manager Demo',
-      password: 'pm123',
+      password: pmPasswordHash,
       role: Role.PM,
     },
     create: {
       email: PM_EMAIL,
       name: 'Project Manager Demo',
-      password: 'pm123',
+      password: pmPasswordHash,
       role: Role.PM,
     },
   });
