@@ -1,7 +1,7 @@
-// src/lib/authOptions.ts
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcrypt";
+import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export const authOptions: NextAuthOptions = {
@@ -21,7 +21,10 @@ export const authOptions: NextAuthOptions = {
 
         if (!email || !password) return null;
 
-        const user = await prisma.user.findUnique({ where: { email } });
+        const user = await prisma.user.findUnique({
+          where: { email },
+          select: { id: true, email: true, name: true, password: true, role: true },
+        });
         if (!user) return null;
 
         const ok = await bcrypt.compare(password, user.password);
@@ -30,8 +33,9 @@ export const authOptions: NextAuthOptions = {
         return {
           id: String(user.id),
           email: user.email,
-          role: user.role,
-        } as any;
+          name: user.name,
+          role: user.role as Role, // (practic redundant, e deja Role)
+        };
       },
     }),
   ],
@@ -39,14 +43,21 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.userId = (user as any).id;
-        token.role = (user as any).role;
+        token.userId = user.id;
+        token.role = user.role;
+        token.name = user.name ?? null;
       }
       return token;
     },
+
     async session({ session, token }) {
-      (session.user as any).id = token.userId;
-      (session.user as any).role = token.role;
+      // session.user este tipizat prin module augmentation
+      session.user.id = token.userId ?? "";
+      session.user.role = token.role ?? Role.MEMBER;
+      session.user.name = token.name ?? session.user.name ?? null;
+
+      // NextAuth pune email în session.user; păstrăm robust
+      session.user.email = session.user.email ?? "";
       return session;
     },
   },
