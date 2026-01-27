@@ -7,6 +7,7 @@ async function main() {
   // --- Demo constants (MVP) ---
   const ADMIN_EMAIL = 'admin@demo.local';
   const PM_EMAIL = 'pm@demo.local';
+  const MEMBER_EMAIL = 'member@demo.local';
   const PROJECT_NAME = 'Project Alpha';
 
   // Deterministic timeframe for demo
@@ -14,6 +15,7 @@ async function main() {
   const projectEnd = new Date('2026-03-31T00:00:00.000Z');
   const adminPasswordHash = await bcrypt.hash('admin123', 10);
   const pmPasswordHash = await bcrypt.hash('pm123', 10);
+  const memberPasswordHash = await bcrypt.hash('member123', 10);
 
 
   // 1) Users
@@ -44,6 +46,21 @@ async function main() {
       name: 'Project Manager Demo',
       password: pmPasswordHash,
       role: Role.PM,
+    },
+  });
+
+    const member = await prisma.user.upsert({
+    where: { email: MEMBER_EMAIL },
+    update: {
+      name: 'Project Manager Demo',
+      password: memberPasswordHash,
+      role: Role.MEMBER,
+    },
+    create: {
+      email: MEMBER_EMAIL,
+      name: 'Project Manager Demo',
+      password: memberPasswordHash,
+      role: Role.MEMBER,
     },
   });
 
@@ -87,6 +104,18 @@ async function main() {
       projectId: project.id,
       userId: pm.id,
       roleInProject: Role.PM,
+    },
+  });
+
+    await prisma.projectMember.upsert({
+    where: {
+      projectId_userId: { projectId: project.id, userId: member.id },
+    },
+    update: { roleInProject: Role.MEMBER },
+    create: {
+      projectId: project.id,
+      userId: member.id,
+      roleInProject: Role.MEMBER,
     },
   });
 
