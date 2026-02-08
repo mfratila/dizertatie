@@ -9,7 +9,9 @@
     "lint": "eslint",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
-    "db:smoke": "node --env-file=.env ./node_modules/tsx/dist/cli.mjs scripts/db-smoke-test.ts"
+    "db:smoke": "node --env-file=.env ./node_modules/tsx/dist/cli.mjs scripts/db-smoke-test.ts",
+    "test": "vitest",
+    "test:run": "vitest run"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
