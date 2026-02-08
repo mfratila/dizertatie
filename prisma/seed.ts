@@ -19,7 +19,6 @@ async function main() {
   const memberPasswordHash = await bcrypt.hash('member123', 10);
   const viewerPasswordHash = await bcrypt.hash('viewer132', 10);
 
-
   // 1) Users
   const admin = await prisma.user.upsert({
     where: { email: ADMIN_EMAIL },
@@ -51,7 +50,7 @@ async function main() {
     },
   });
 
-    const member = await prisma.user.upsert({
+  const member = await prisma.user.upsert({
     where: { email: MEMBER_EMAIL },
     update: {
       name: 'Member Demo',
@@ -66,7 +65,7 @@ async function main() {
     },
   });
 
-    const viewer = await prisma.user.upsert({
+  const viewer = await prisma.user.upsert({
     where: { email: VIEWER_EMAIL },
     update: {
       name: 'Viewer Demo',
@@ -124,7 +123,7 @@ async function main() {
     },
   });
 
-    await prisma.projectMember.upsert({
+  await prisma.projectMember.upsert({
     where: {
       projectId_userId: { projectId: project.id, userId: member.id },
     },
@@ -136,7 +135,7 @@ async function main() {
     },
   });
 
-    await prisma.projectMember.upsert({
+  await prisma.projectMember.upsert({
     where: {
       projectId_userId: { projectId: project.id, userId: viewer.id },
     },

@@ -1,19 +1,19 @@
-import type { NextAuthOptions } from "next-auth";
-import CredentialsProvider from "next-auth/providers/credentials";
-import bcrypt from "bcrypt";
-import { Role } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
+import type { NextAuthOptions } from 'next-auth';
+import CredentialsProvider from 'next-auth/providers/credentials';
+import bcrypt from 'bcrypt';
+import { Role } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 
 export const authOptions: NextAuthOptions = {
-  session: { strategy: "jwt" },
-  pages: { signIn: "/login" },
+  session: { strategy: 'jwt' },
+  pages: { signIn: '/login' },
 
   providers: [
     CredentialsProvider({
-      name: "Credentials",
+      name: 'Credentials',
       credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Parolă", type: "password" },
+        email: { label: 'Email', type: 'email' },
+        password: { label: 'Parolă', type: 'password' },
       },
       async authorize(credentials) {
         const email = credentials?.email?.trim().toLowerCase();
@@ -52,12 +52,12 @@ export const authOptions: NextAuthOptions = {
 
     async session({ session, token }) {
       // session.user este tipizat prin module augmentation
-      session.user.id = token.userId ?? "";
+      session.user.id = token.userId ?? '';
       session.user.role = token.role ?? Role.MEMBER;
       session.user.name = token.name ?? session.user.name ?? null;
 
       // NextAuth pune email în session.user; păstrăm robust
-      session.user.email = session.user.email ?? "";
+      session.user.email = session.user.email ?? '';
       return session;
     },
   },
