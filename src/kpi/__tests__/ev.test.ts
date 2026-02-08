@@ -1,4 +1,3 @@
-// src/kpi/__tests__/ev.test.ts
 import { describe, it, expect } from "vitest";
 import { computeProgressEqualWeighted, calculateEV, InvalidProgressError } from "../engine/ev";
 
