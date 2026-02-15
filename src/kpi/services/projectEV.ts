@@ -7,31 +7,32 @@ export class NotFoundError extends Error {}
 export class InvalidProjectDataError extends Error {}
 
 export async function computeEVForProject(projectId: number) {
-    if (!Number.isInteger(projectId) || projectId <= 0) {
-        throw new InvalidProjectDataError('projectId must be a positive integer.');
-    }
+  if (!Number.isInteger(projectId) || projectId <= 0) {
+    throw new InvalidProjectDataError('projectId must be a positive integer.');
+  }
 
-    const project = await prisma.project.findUnique({
-        where: { id: projectId },
-        select: { plannedBudget: true },
-    });
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { plannedBudget: true },
+  });
 
-    if (!project) throw new NotFoundError(`Project with id ${projectId} not found.`);
+  if (!project) throw new NotFoundError(`Project with id ${projectId} not found.`);
 
-    const bac = 
-        project.plannedBudget instanceof Prisma.Decimal
-            ? project.plannedBudget.toNumber()
-            : Number(project.plannedBudget);
+  const bac =
+    project.plannedBudget instanceof Prisma.Decimal
+      ? project.plannedBudget.toNumber()
+      : Number(project.plannedBudget);
 
-    if (!Number.isFinite(bac)) throw new InvalidProjectDataError('Project.plannedBudget (BAC) is invalid.');
-    if (bac < 0) throw new InvalidProjectDataError('Project.plannedBudget (BAC) must be >= 0.');
+  if (!Number.isFinite(bac))
+    throw new InvalidProjectDataError('Project.plannedBudget (BAC) is invalid.');
+  if (bac < 0) throw new InvalidProjectDataError('Project.plannedBudget (BAC) must be >= 0.');
 
-    const progress = await computeProjectProgress(projectId);
-    const ev = calculateEV(bac, progress.progressRatio);
+  const progress = await computeProjectProgress(projectId);
+  const ev = calculateEV(bac, progress.progressRatio);
 
-    return {
-        ev,
-        bac,
-        progress
-    };
+  return {
+    ev,
+    bac,
+    progress,
+  };
 }
