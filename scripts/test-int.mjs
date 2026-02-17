@@ -42,4 +42,4 @@ if (!process.env.DATABASE_URL.includes('kpi_tracker_test')) {
 console.log('Using test DB:', process.env.DATABASE_URL);
 
 execSync('npx prisma migrate deploy', { stdio: 'inherit' });
-execSync('npx vitest run --no-threads', { stdio: 'inherit' });
+execSync('npx vitest run', { stdio: 'inherit' });
