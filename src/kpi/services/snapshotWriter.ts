@@ -60,7 +60,7 @@ export async function persistKpiSnapshots(projectId: number, asOfDate: Date) {
 
   // 3) Insert atomically (new rows each time, no overwrite)
   const created = await prisma.$transaction(
-    rows.map((data) => prisma.kPISnapshot.create({ data })),
+    rows.map((data) => prisma.kPISnapshot.create({ data, include: { kpiDefinition: true } })),
   );
 
   return created;
