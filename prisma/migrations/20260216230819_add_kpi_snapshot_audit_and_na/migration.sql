@@ -1,0 +1,8 @@
+-- AlterEnum
+ALTER TYPE "KpiStatus" ADD VALUE 'NA';
+
+-- AlterTable
+ALTER TABLE "KPISnapshot" ADD COLUMN     "ac" DECIMAL(12,6),
+ADD COLUMN     "ev" DECIMAL(12,6),
+ADD COLUMN     "pv" DECIMAL(12,6),
+ALTER COLUMN "value" DROP NOT NULL;
