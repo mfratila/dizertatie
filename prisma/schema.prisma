@@ -32,6 +32,7 @@ enum KpiStatus {
   GREEN
   YELLOW
   RED
+  NA
 }
 
 model User {
@@ -150,10 +151,17 @@ model KPISnapshot {
   id              Int      @id @default(autoincrement())
   projectId       Int
   kpiDefinitionId Int
-  value           Decimal  @db.Decimal(12, 6)
+
+  value           Decimal?  @db.Decimal(12, 6)
   status          KpiStatus
+
   computedAt      DateTime
   createdAt       DateTime @default(now())
+
+  // audit inputs (recommended)
+  ev              Decimal? @db.Decimal(12, 6)
+  pv              Decimal? @db.Decimal(12, 6)
+  ac              Decimal? @db.Decimal(12, 6)
 
   project       Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
   kpiDefinition KPIDefinition @relation(fields: [kpiDefinitionId], references: [id], onDelete: Cascade)
