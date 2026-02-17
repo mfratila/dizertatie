@@ -11,7 +11,8 @@
     "format:check": "prettier . --check",
     "db:smoke": "node --env-file=.env ./node_modules/tsx/dist/cli.mjs scripts/db-smoke-test.ts",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "test:int": "node ./scripts/test-int.mjs"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

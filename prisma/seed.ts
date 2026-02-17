@@ -239,53 +239,53 @@ async function main() {
     },
   });
 
-// 8) KPIDefinition (CPI)
-const cpiDef =await prisma.kPIDefinition.upsert({
-  where: { projectId_type: { projectId: project.id, type: KpiType.CPI } },
-  update: {
-    thresholdGreen: new Prisma.Decimal("1.00"),
-    thresholdYellow: new Prisma.Decimal("0.90"),
-  },
-  create: {
-    projectId: project.id,
-    type: KpiType.CPI,
-    thresholdGreen: new Prisma.Decimal("1.00"),
-    thresholdYellow: new Prisma.Decimal("0.90"),
-  },
-});
+  // 8) KPIDefinition (CPI)
+  const cpiDef = await prisma.kPIDefinition.upsert({
+    where: { projectId_type: { projectId: project.id, type: KpiType.CPI } },
+    update: {
+      thresholdGreen: new Prisma.Decimal('1.00'),
+      thresholdYellow: new Prisma.Decimal('0.90'),
+    },
+    create: {
+      projectId: project.id,
+      type: KpiType.CPI,
+      thresholdGreen: new Prisma.Decimal('1.00'),
+      thresholdYellow: new Prisma.Decimal('0.90'),
+    },
+  });
 
-// 9) KPIDefinition (SPI)
-const spiDef = await prisma.kPIDefinition.upsert({
-  where: { projectId_type: { projectId: project.id, type: KpiType.SPI } },
-  update: {
-    thresholdGreen: new Prisma.Decimal("1.00"),
-    thresholdYellow: new Prisma.Decimal("0.90"),
-  },
-  create: {
-    projectId: project.id,
-    type: KpiType.SPI,
-    thresholdGreen: new Prisma.Decimal("1.00"),
-    thresholdYellow: new Prisma.Decimal("0.90"),
-  },
-});
+  // 9) KPIDefinition (SPI)
+  const spiDef = await prisma.kPIDefinition.upsert({
+    where: { projectId_type: { projectId: project.id, type: KpiType.SPI } },
+    update: {
+      thresholdGreen: new Prisma.Decimal('1.00'),
+      thresholdYellow: new Prisma.Decimal('0.90'),
+    },
+    create: {
+      projectId: project.id,
+      type: KpiType.SPI,
+      thresholdGreen: new Prisma.Decimal('1.00'),
+      thresholdYellow: new Prisma.Decimal('0.90'),
+    },
+  });
 
-// 10) KPIDefinition (BURN_RATE)
-const burnRateDef = await prisma.kPIDefinition.upsert({
-  where: { projectId_type: { projectId: project.id, type: KpiType.BURN_RATE } },
-  update: {
-    // For burn rate, thresholds depend on your interpretation:
-    // lower burn rate is usually better, but our RAG mapping assumes "higher is better".
-    // MVP simplest: define thresholds so higher is considered better OR handle burn rate separately.
-    thresholdGreen: new Prisma.Decimal("0.00"),
-    thresholdYellow: new Prisma.Decimal("0.00"),
-  },
-  create: {
-    projectId: project.id,
-    type: KpiType.BURN_RATE,
-    thresholdGreen: new Prisma.Decimal("0.00"),
-    thresholdYellow: new Prisma.Decimal("0.00"),
-  },
-});
+  // 10) KPIDefinition (BURN_RATE)
+  const burnRateDef = await prisma.kPIDefinition.upsert({
+    where: { projectId_type: { projectId: project.id, type: KpiType.BURN_RATE } },
+    update: {
+      // For burn rate, thresholds depend on your interpretation:
+      // lower burn rate is usually better, but our RAG mapping assumes "higher is better".
+      // MVP simplest: define thresholds so higher is considered better OR handle burn rate separately.
+      thresholdGreen: new Prisma.Decimal('0.00'),
+      thresholdYellow: new Prisma.Decimal('0.00'),
+    },
+    create: {
+      projectId: project.id,
+      type: KpiType.BURN_RATE,
+      thresholdGreen: new Prisma.Decimal('0.00'),
+      thresholdYellow: new Prisma.Decimal('0.00'),
+    },
+  });
 
   // 11) KPISnapshot (1) — minimal history record for CPI
   // The KPI value here is illustrative; actual computation will be a later story.
