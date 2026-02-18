@@ -3,17 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { Role } from '@prisma/client';
 import { persistKpiSnapshots } from '@/kpi/services/snapshotWriter';
-
-// ---- helpers ----
-function isAdminOrPm(role: Role | undefined) {
-  return role === Role.ADMIN || role === Role.PM;
-}
-
-function parseProjectId(param: string): number | null {
-  const n = Number(param);
-  if (!Number.isInteger(n) || n <= 0) return null;
-  return n;
-}
+import { isAdminOrPm, parseProjectId } from '@/app/api/utils/utils';
 
 function parseAsOf(value: unknown): Date | null {
   if (value === undefined || value === null || value === '') return null;
