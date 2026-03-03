@@ -1,7 +1,7 @@
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/page-guards';
+import { Role } from '@prisma/client';
+import CreateProjectInline from './CreateProjectInline';
 
 function formatDate(d: Date) {
   return new Intl.DateTimeFormat('ro-RO').format(d);
@@ -18,6 +18,8 @@ export default async function ProjectsPage() {
 
   const userId = Number(session.user.id);
   const role = session.user.role;
+
+  const canCreate = role === Role.ADMIN || role === Role.PM;
 
   const select = {
     id: true,
@@ -46,7 +48,11 @@ export default async function ProjectsPage() {
     <div style={{ padding: 24 }}>
       <h1>Projects</h1>
 
+      {/* dor Admin/PM vede create */}
+      {canCreate && <CreateProjectInline />}
+
       <table
+        className="card"
         style={{
           width: '100%',
           borderCollapse: 'collapse',
