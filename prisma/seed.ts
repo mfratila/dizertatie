@@ -191,8 +191,8 @@ async function main() {
       projectId: project2.id,
       userId: member2.id,
       roleInProject: Role.MEMBER,
-    }
-  })
+    },
+  });
 
   // --- Cleanup demo children for idempotency ---
   // WorkItem has no unique constraint; easiest is delete/recreate children under this project.
