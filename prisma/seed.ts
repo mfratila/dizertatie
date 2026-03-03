@@ -8,8 +8,10 @@ async function main() {
   const ADMIN_EMAIL = 'admin@demo.local';
   const PM_EMAIL = 'pm@demo.local';
   const MEMBER_EMAIL = 'member@demo.local';
+  const MEMBER_2_EMAIL = 'member2@demo.local';
   const VIEWER_EMAIL = 'viewer@demo.local';
   const PROJECT_NAME = 'Project Alpha';
+  const PROJECT_2_NAME = 'Project Beta';
 
   // Deterministic timeframe for demo
   const projectStart = new Date('2026-01-01T00:00:00.000Z');
@@ -17,6 +19,7 @@ async function main() {
   const adminPasswordHash = await bcrypt.hash('admin123', 10);
   const pmPasswordHash = await bcrypt.hash('pm123', 10);
   const memberPasswordHash = await bcrypt.hash('member123', 10);
+  const member2PasswordHash = await bcrypt.hash('member123', 10);
   const viewerPasswordHash = await bcrypt.hash('viewer132', 10);
 
   // 1) Users
@@ -65,6 +68,21 @@ async function main() {
     },
   });
 
+  const member2 = await prisma.user.upsert({
+    where: { email: MEMBER_2_EMAIL },
+    update: {
+      name: 'Member Demo 2',
+      password: member2PasswordHash,
+      role: Role.MEMBER,
+    },
+    create: {
+      email: MEMBER_2_EMAIL,
+      name: 'Member Demo 2',
+      password: member2PasswordHash,
+      role: Role.MEMBER,
+    },
+  });
+
   const viewer = await prisma.user.upsert({
     where: { email: VIEWER_EMAIL },
     update: {
@@ -91,6 +109,23 @@ async function main() {
     },
     create: {
       name: PROJECT_NAME,
+      startDate: projectStart,
+      endDate: projectEnd,
+      plannedBudget: new Prisma.Decimal('100000.00'), // BAC
+      status: ProjectStatus.ACTIVE,
+    },
+  });
+
+  const project2 = await prisma.project.upsert({
+    where: { name: PROJECT_2_NAME },
+    update: {
+      startDate: projectStart,
+      endDate: projectEnd,
+      plannedBudget: new Prisma.Decimal('100000.00'), // BAC
+      status: ProjectStatus.ACTIVE,
+    },
+    create: {
+      name: PROJECT_2_NAME,
       startDate: projectStart,
       endDate: projectEnd,
       plannedBudget: new Prisma.Decimal('100000.00'), // BAC
@@ -146,6 +181,18 @@ async function main() {
       roleInProject: Role.VIEWER,
     },
   });
+
+  await prisma.projectMember.upsert({
+    where: {
+      projectId_userId: { projectId: project2.id, userId: member2.id },
+    },
+    update: { roleInProject: Role.MEMBER },
+    create: {
+      projectId: project2.id,
+      userId: member2.id,
+      roleInProject: Role.MEMBER,
+    }
+  })
 
   // --- Cleanup demo children for idempotency ---
   // WorkItem has no unique constraint; easiest is delete/recreate children under this project.
