@@ -3,30 +3,35 @@ import { requireAuth } from '@/lib/page-guards';
 import { Role } from '@prisma/client';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+
 import { formatDate, formatMoney } from '../utils';
 import EditProjectInline from './EditProjectInline';
+import MembersSection from './members/MembersSection';
 
 export default async function ProjectDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireAuth();
+
   const userId = Number(session.user.id);
   const role = session.user.role;
+
   const { id } = await params;
   const projectId = Number(id);
-  if (!Number.isInteger(projectId)) {
-    notFound();
-  }
+  if (!Number.isInteger(projectId)) notFound();
+
+  // 1) Access rule (read details):
+  // Admin OR member of project
+  let actorMembership: { roleInProject: string } | null = null;
 
   if (role !== Role.ADMIN) {
-    const membership = await prisma.projectMember.findUnique({
+    actorMembership = await prisma.projectMember.findUnique({
       where: { projectId_userId: { projectId, userId } },
-      select: { projectId: true },
+      select: { roleInProject: true },
     });
 
-    if (!membership) notFound();
+    if (!actorMembership) notFound();
   }
 
-  const canEdit = role === Role.PM;
-
+  // 2) Load project (includes members)
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     select: {
@@ -38,6 +43,7 @@ export default async function ProjectDetailsPage({ params }: { params: Promise<{
       plannedBudget: true,
       members: {
         select: {
+          userId: true,
           roleInProject: true,
           user: { select: { id: true, name: true, email: true, role: true } },
         },
@@ -48,13 +54,22 @@ export default async function ProjectDetailsPage({ params }: { params: Promise<{
 
   if (!project) notFound();
 
+  // 3) Permissions for edit/manage
+  // Admin: can edit + can manage members for any project
+  // PM: only if PM in this project
+  const isPmInProject = role === Role.ADMIN ? true : actorMembership?.roleInProject === 'PM';
+
+  const canEditProject = role === Role.ADMIN || (role === Role.PM && isPmInProject);
+  const canManageMembers = role === Role.ADMIN || (role === Role.PM && isPmInProject);
+
   return (
     <div style={{ padding: 24 }}>
       <div style={{ marginBottom: 16 }}>
         <h1 style={{ fontSize: 24, fontWeight: 600 }}>{project.name}</h1>
         <div style={{ color: '#666' }}>Project ID: {project.id}</div>
-        {/* dor Admin/PM vede create */}
-        {canEdit && (
+
+        {/* ✅ Edit project: Admin OR PM-in-project */}
+        {canEditProject && (
           <EditProjectInline
             projectId={project.id}
             initial={{
@@ -62,7 +77,7 @@ export default async function ProjectDetailsPage({ params }: { params: Promise<{
               startDate: project.startDate.toISOString().split('T')[0],
               endDate: project.endDate.toISOString().split('T')[0],
               plannedBudget: Number(project.plannedBudget),
-              status: project.status,
+              status: String(project.status),
             }}
           />
         )}
@@ -85,49 +100,23 @@ export default async function ProjectDetailsPage({ params }: { params: Promise<{
         </div>
       </section>
 
-      {/* Members */}
-      <section style={{ marginBottom: 20 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>Members</h2>
-
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr>
-              <th style={{ textAlign: 'left', borderBottom: '1px solid #ddd', padding: 8 }}>
-                Name
-              </th>
-              <th style={{ textAlign: 'left', borderBottom: '1px solid #ddd', padding: 8 }}>
-                Email
-              </th>
-              <th style={{ textAlign: 'left', borderBottom: '1px solid #ddd', padding: 8 }}>
-                Role in Project
-              </th>
-              <th style={{ textAlign: 'left', borderBottom: '1px solid #ddd', padding: 8 }}>
-                Global Role
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {project.members.map((m) => (
-              <tr key={m.user.id}>
-                <td style={{ padding: 8 }}>{m.user.name ?? '(no name)'}</td>
-                <td style={{ padding: 8 }}>{m.user.email}</td>
-                <td style={{ padding: 8 }}>{String(m.roleInProject)}</td>
-                <td style={{ padding: 8 }}>{String(m.user.role)}</td>
-              </tr>
-            ))}
-            {project.members.length === 0 && (
-              <tr>
-                <td colSpan={4} style={{ padding: 12, color: '#666' }}>
-                  Nu există membri în proiect.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </section>
+      {/* Members (Manage + List) */}
+      <MembersSection
+        projectId={project.id}
+        canManage={canManageMembers}
+        members={project.members.map((m) => ({
+          userId: m.userId,
+          roleInProject: String(m.roleInProject) as 'PM' | 'MEMBER' | 'VIEWER',
+          user: {
+            name: m.user.name,
+            email: m.user.email,
+            role: String(m.user.role),
+          },
+        }))}
+      />
 
       {/* Links */}
-      <section>
+      <section style={{ marginTop: 20 }}>
         <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>Modules</h2>
         <ul style={{ display: 'grid', gap: 6, paddingLeft: 18 }}>
           <li>
