@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { formatDate, formatMoney } from '../utils';
 
-export default async function ProjectDetailsPage( { params }: { params: Promise<{ id: string }> }) {
+export default async function ProjectDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireAuth();
   const userId = Number(session.user.id);
   const role = session.user.role;
