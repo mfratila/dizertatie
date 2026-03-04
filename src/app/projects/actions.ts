@@ -4,10 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/page-guards';
 import { Role, ProjectStatus } from '@prisma/client';
-
-function isValidDate(d: Date) {
-  return Number.isFinite(d.getTime());
-}
+import { isValidDate } from './utils';
 
 export async function createProjectAction(formData: FormData) {
   // RBAC: doar Admin/PM pot crea

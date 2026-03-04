@@ -4,6 +4,7 @@ import { Role } from '@prisma/client';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { formatDate, formatMoney } from '../utils';
+import EditProjectInline from './EditProjectInline';
 
 export default async function ProjectDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireAuth();
@@ -23,6 +24,8 @@ export default async function ProjectDetailsPage({ params }: { params: Promise<{
 
     if (!membership) notFound();
   }
+
+  const canEdit = role === Role.PM;
 
   const project = await prisma.project.findUnique({
     where: { id: projectId },
@@ -50,6 +53,19 @@ export default async function ProjectDetailsPage({ params }: { params: Promise<{
       <div style={{ marginBottom: 16 }}>
         <h1 style={{ fontSize: 24, fontWeight: 600 }}>{project.name}</h1>
         <div style={{ color: '#666' }}>Project ID: {project.id}</div>
+        {/* dor Admin/PM vede create */}
+        {canEdit && (
+          <EditProjectInline
+            projectId={project.id}
+            initial={{
+              name: project.name,
+              startDate: project.startDate.toISOString().split('T')[0],
+              endDate: project.endDate.toISOString().split('T')[0],
+              plannedBudget: Number(project.plannedBudget),
+              status: project.status,
+            }}
+          />
+        )}
       </div>
 
       {/* Overview */}

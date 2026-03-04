@@ -25,17 +25,7 @@ export default function CreateProjectInline() {
     <div style={{ marginTop: 12, marginBottom: 16 }}>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="
-    inline-flex items-center gap-2
-    px-4 py-2
-    rounded-lg
-    bg-blue-600 text-white
-    hover:bg-blue-700
-    active:bg-blue-800
-    transition-colors
-    font-medium
-    shadow-sm
-  "
+        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 transition-colors font-medium shadow-sm"
       >
         {open ? 'Anulează' : 'Creează proiect'}
       </button>
