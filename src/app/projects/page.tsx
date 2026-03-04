@@ -2,16 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/page-guards';
 import { Role } from '@prisma/client';
 import CreateProjectInline from './CreateProjectInline';
-
-function formatDate(d: Date) {
-  return new Intl.DateTimeFormat('ro-RO').format(d);
-}
-
-function formatMoney(v: any) {
-  // Prisma Decimal -> string/number in functie de config; tratam robust
-  const n = typeof v === 'number' ? v : Number(v?.toString?.() ?? v);
-  return new Intl.NumberFormat('ro-RO', { style: 'currency', currency: 'RON' }).format(n);
-}
+import { formatDate, formatMoney } from './utils';
 
 export default async function ProjectsPage() {
   const session = await requireAuth();
