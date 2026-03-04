@@ -254,7 +254,6 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         endDate: true,
         plannedBudget: true,
         status: true,
-        updatedAt: true,
       },
     });
 
