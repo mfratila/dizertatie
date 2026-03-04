@@ -193,69 +193,70 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       );
     }
   }
-    data.plannedBudget = body.plannedBudget;
+  data.plannedBudget = body.plannedBudget;
 
-    // Dates: parse if provided; validate end >= start using current + new values
-    const nextStartDate = body.startDate !== undefined ? new Date(body.startDate) : currentProject.startDate;
-    const nextEndDate = body.endDate !== undefined ? new Date(body.endDate) : currentProject.endDate;
+  // Dates: parse if provided; validate end >= start using current + new values
+  const nextStartDate =
+    body.startDate !== undefined ? new Date(body.startDate) : currentProject.startDate;
+  const nextEndDate = body.endDate !== undefined ? new Date(body.endDate) : currentProject.endDate;
 
-    if (body.startDate !== undefined) {
-      if (!isValidDate(nextStartDate)) {
-        return NextResponse.json(
-          { error: 'Bad Request', message: 'Invalid start date.' },
-          { status: 400 },
-        );
-      }
-    }
-    data.startDate = nextStartDate;
-
-    if (body.endDate !== undefined) {
-      if (!isValidDate(nextEndDate)) {
-        return NextResponse.json(
-          { error: 'Bad Request', message: 'Invalid end date.' },
-          { status: 400 },
-        );
-      }
-    }
-    data.endDate = nextEndDate;
-
-    if (nextStartDate.getTime() > nextEndDate.getTime()) {
+  if (body.startDate !== undefined) {
+    if (!isValidDate(nextStartDate)) {
       return NextResponse.json(
-        { error: 'Bad Request', message: 'End date cannot be before start date.' },
+        { error: 'Bad Request', message: 'Invalid start date.' },
         { status: 400 },
       );
     }
+  }
+  data.startDate = nextStartDate;
 
-    if (body.status !== undefined) {
-      const s = String(body.status).trim();
-      if (!s) {
-        return NextResponse.json(
-          { error: 'Bad Request', message: 'Status cannot be empty.' },
-          { status: 400 },
-        );
-      }
-      data.status = s;
-    }
-
-    if (Object.keys(data).length === 0) {
+  if (body.endDate !== undefined) {
+    if (!isValidDate(nextEndDate)) {
       return NextResponse.json(
-        { error: 'Bad Request', message: 'No valid fields provided for update.' },
+        { error: 'Bad Request', message: 'Invalid end date.' },
         { status: 400 },
       );
     }
+  }
+  data.endDate = nextEndDate;
 
-    const updated = await prisma.project.update({
-      where: { id: projectId },
-      data,
-      select: {
-        id: true,
-        name: true,
-        startDate: true,
-        endDate: true,
-        plannedBudget: true,
-        status: true,
-      },
-    });
+  if (nextStartDate.getTime() > nextEndDate.getTime()) {
+    return NextResponse.json(
+      { error: 'Bad Request', message: 'End date cannot be before start date.' },
+      { status: 400 },
+    );
+  }
 
-    return NextResponse.json({ data: updated });
+  if (body.status !== undefined) {
+    const s = String(body.status).trim();
+    if (!s) {
+      return NextResponse.json(
+        { error: 'Bad Request', message: 'Status cannot be empty.' },
+        { status: 400 },
+      );
+    }
+    data.status = s;
+  }
+
+  if (Object.keys(data).length === 0) {
+    return NextResponse.json(
+      { error: 'Bad Request', message: 'No valid fields provided for update.' },
+      { status: 400 },
+    );
+  }
+
+  const updated = await prisma.project.update({
+    where: { id: projectId },
+    data,
+    select: {
+      id: true,
+      name: true,
+      startDate: true,
+      endDate: true,
+      plannedBudget: true,
+      status: true,
+    },
+  });
+
+  return NextResponse.json({ data: updated });
 }
