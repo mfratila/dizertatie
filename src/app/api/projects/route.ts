@@ -59,11 +59,13 @@ export async function GET() {
   const projects =
     role === 'ADMIN'
       ? await prisma.project.findMany({
+          where: { archivedAt: null },
           orderBy: { createdAt: 'desc' },
           select,
         })
       : await prisma.project.findMany({
           where: {
+            archivedAt: null,
             members: {
               some: { userId },
             },
