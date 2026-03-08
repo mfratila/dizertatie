@@ -3,13 +3,18 @@ import { requireAuth } from '@/lib/page-guards';
 import { Role } from '@prisma/client';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import type { CSSProperties } from 'react';
 
-import { formatDate, formatMoney } from '../utils';
-import EditProjectInline from './EditProjectInline';
+import { formatDate, formatMoney } from '../_utils/utils';
+import EditProjectInline from './_components/EditProjectInline';
 import MembersSection from './members/MembersSection';
-import ArchiveProjectButton from './ArchiveProjectButton';
+import ArchiveProjectButton from './_components/ArchiveProjectButton';
 
-export default async function ProjectDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ProjectDetailsPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const session = await requireAuth();
 
   const userId = Number(session.user.id);
@@ -17,10 +22,11 @@ export default async function ProjectDetailsPage({ params }: { params: Promise<{
 
   const { id } = await params;
   const projectId = Number(id);
+
   if (!Number.isInteger(projectId)) notFound();
 
-  // 1) Access rule (read details):
-  // Admin OR member of project
+  // 1) Regula de acces la proiect:
+  // Admin SAU membru în proiect
   let actorMembership: { roleInProject: string } | null = null;
 
   if (role !== Role.ADMIN) {
@@ -32,7 +38,7 @@ export default async function ProjectDetailsPage({ params }: { params: Promise<{
     if (!actorMembership) notFound();
   }
 
-  // 2) Load project (includes members)
+  // 2) Încarcă proiectul + membri
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     select: {
@@ -47,7 +53,14 @@ export default async function ProjectDetailsPage({ params }: { params: Promise<{
         select: {
           userId: true,
           roleInProject: true,
-          user: { select: { id: true, name: true, email: true, role: true } },
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+            },
+          },
         },
         orderBy: [{ roleInProject: 'asc' }, { userId: 'asc' }],
       },
@@ -56,9 +69,28 @@ export default async function ProjectDetailsPage({ params }: { params: Promise<{
 
   if (!project) notFound();
 
-  // 3) Permissions for edit/manage
-  // Admin: can edit + can manage members for any project
-  // PM: only if PM in this project
+  // 3) Încarcă work items
+  const workItems = await prisma.workItem.findMany({
+    where: { projectId: project.id },
+    orderBy: [{ plannedEndDate: 'asc' }, { createdAt: 'asc' }],
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      status: true,
+      progressPercent: true,
+      plannedEndDate: true,
+      assignedUser: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+    },
+  });
+
+  // 4) Permisiuni
   const isPmInProject = role === Role.ADMIN ? true : actorMembership?.roleInProject === 'PM';
 
   const canEditProject = role === Role.ADMIN || (role === Role.PM && isPmInProject);
@@ -69,10 +101,10 @@ export default async function ProjectDetailsPage({ params }: { params: Promise<{
     <div style={{ padding: 24 }}>
       <div style={{ marginBottom: 16 }}>
         <h1 style={{ fontSize: 24, fontWeight: 600 }}>{project.name}</h1>
-        <div style={{ color: '#666' }}>Project ID: {project.id}</div>
+        <div style={{ color: '#9ca3af' }}>ID proiect: {project.id}</div>
 
         {canArchive && !project.archivedAt && <ArchiveProjectButton projectId={project.id} />}
-        {/* ✅ Edit project: Admin OR PM-in-project */}
+
         {canEditProject && (
           <EditProjectInline
             projectId={project.id}
@@ -87,12 +119,13 @@ export default async function ProjectDetailsPage({ params }: { params: Promise<{
         )}
       </div>
 
-      {/* Overview */}
       <section style={{ marginBottom: 20 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>Overview</h2>
+        <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>
+          Prezentare generală
+        </h2>
         <div style={{ display: 'grid', gap: 6 }}>
           <div>
-            <strong>Status:</strong> {String(project.status)}
+            <strong>Stare:</strong> {String(project.status)}
           </div>
           <div>
             <strong>Perioadă:</strong> {formatDate(project.startDate)} –{' '}
@@ -104,7 +137,6 @@ export default async function ProjectDetailsPage({ params }: { params: Promise<{
         </div>
       </section>
 
-      {/* Members (Manage + List) */}
       <MembersSection
         projectId={project.id}
         canManage={canManageMembers}
@@ -119,21 +151,97 @@ export default async function ProjectDetailsPage({ params }: { params: Promise<{
         }))}
       />
 
-      {/* Links */}
       <section style={{ marginTop: 20 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>Modules</h2>
+        <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>Activități</h2>
+
+        {workItems.length === 0 ? (
+          <div style={{ color: '#9ca3af' }}>
+            Nu există activități definite pentru acest proiect.
+          </div>
+        ) : (
+          <div
+            style={{
+              overflowX: 'auto',
+              border: '1px solid #374151',
+              borderRadius: 8,
+              marginTop: 8,
+            }}
+          >
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead style={{ background: '#0f172a' }}>
+                <tr>
+                  <th style={thStyle}>Titlu</th>
+                  <th style={thStyle}>Stare</th>
+                  <th style={thStyle}>Progres</th>
+                  <th style={thStyle}>Data finală planificată</th>
+                  <th style={thStyle}>Responsabil</th>
+                </tr>
+              </thead>
+              <tbody>
+                {workItems.map((item) => (
+                  <tr key={item.id}>
+                    <td style={tdStyle}>
+                      <div style={{ fontWeight: 500 }}>{item.title}</div>
+                      {item.description ? (
+                        <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 4 }}>
+                          {item.description}
+                        </div>
+                      ) : null}
+                    </td>
+                    <td style={tdStyle}>{formatWorkItemStatus(String(item.status))}</td>
+                    <td style={tdStyle}>{item.progressPercent}%</td>
+                    <td style={tdStyle}>{formatDate(item.plannedEndDate)}</td>
+                    <td style={tdStyle}>{item.assignedUser?.name ?? 'Nealocat'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <section style={{ marginTop: 20 }}>
+        <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>Module</h2>
         <ul style={{ display: 'grid', gap: 6, paddingLeft: 18 }}>
           <li>
-            <Link href={`/projects/${project.id}/tasks`}>Tasks</Link>
+            <Link href={`/projects/${project.id}/tasks`}>Activități</Link>
           </li>
           <li>
-            <Link href={`/projects/${project.id}/execution`}>Execution</Link>
+            <Link href={`/projects/${project.id}/execution`}>Execuție</Link>
           </li>
           <li>
-            <Link href={`/projects/${project.id}/kpi`}>KPI</Link>
+            <Link href={`/projects/${project.id}/kpi`}>Indicatori KPI</Link>
           </li>
         </ul>
       </section>
     </div>
   );
 }
+
+function formatWorkItemStatus(status: string) {
+  switch (status) {
+    case 'TODO':
+      return 'De făcut';
+    case 'IN_PROGRESS':
+      return 'În progres';
+    case 'DONE':
+      return 'Finalizat';
+    default:
+      return status;
+  }
+}
+
+const thStyle: CSSProperties = {
+  textAlign: 'left',
+  padding: '10px 12px',
+  borderBottom: '1px solid #374151',
+  backgroundColor: '#0f172a',
+  color: '#e5e7eb',
+  fontWeight: 600,
+};
+
+const tdStyle: CSSProperties = {
+  padding: '10px 12px',
+  borderBottom: '1px solid #1f2937',
+  verticalAlign: 'top',
+};

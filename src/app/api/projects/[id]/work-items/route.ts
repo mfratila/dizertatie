@@ -45,5 +45,16 @@ export async function GET(_req: Request, context: RouteContext) {
   const workItems = await prisma.workItem.findMany({
     where: { projectId },
     orderBy: [{ plannedEndDate: 'asc' }, { createdAt: 'asc' }],
+    include: {
+      assignedUser: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+    },
   });
+
+  return NextResponse.json({ data: workItems });
 }
