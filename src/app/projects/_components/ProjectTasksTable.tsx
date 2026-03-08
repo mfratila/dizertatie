@@ -1,4 +1,4 @@
-import { formatWorkItemDate } from "../_utils/utils";
+import { formatWorkItemDate } from '../_utils/utils';
 
 type WorkItemRow = {
   id: number;
@@ -36,10 +36,7 @@ function ProgressBar({ value }: { value: number }) {
   return (
     <div className="flex items-center gap-3">
       <div className="h-2 w-28 overflow-hidden rounded bg-gray-200">
-        <div
-          className="h-full rounded bg-black"
-          style={{ width: `${value}%` }}
-        />
+        <div className="h-full rounded bg-black" style={{ width: `${value}%` }} />
       </div>
       <span className="text-sm text-gray-700">{value}%</span>
     </div>
@@ -74,27 +71,19 @@ export function ProjectTasksTable({ items }: { items: WorkItemRow[] }) {
               <td className="px-4 py-3">
                 <div className="font-medium text-gray-900">{item.title}</div>
                 {item.description ? (
-                  <div className="mt-1 text-xs text-gray-500">
-                    {item.description}
-                  </div>
+                  <div className="mt-1 text-xs text-gray-500">{item.description}</div>
                 ) : null}
               </td>
 
-              <td className="px-4 py-3 text-gray-700">
-                {formatStatus(item.status)}
-              </td>
+              <td className="px-4 py-3 text-gray-700">{formatStatus(item.status)}</td>
 
               <td className="px-4 py-3">
                 <ProgressBar value={item.progressPercent} />
               </td>
 
-              <td className="px-4 py-3 text-gray-700">
-                {formatWorkItemDate(item.plannedEndDate)}
-              </td>
+              <td className="px-4 py-3 text-gray-700">{formatWorkItemDate(item.plannedEndDate)}</td>
 
-              <td className="px-4 py-3 text-gray-700">
-                {item.assignedUser?.name ?? 'Unassigned'}
-              </td>
+              <td className="px-4 py-3 text-gray-700">{item.assignedUser?.name ?? 'Unassigned'}</td>
             </tr>
           ))}
         </tbody>

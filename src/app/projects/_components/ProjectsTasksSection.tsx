@@ -5,11 +5,7 @@ import { authOptions } from '@/lib/authOptions';
 import { canViewProject } from '@/lib/authz';
 import { ProjectTasksTable } from './ProjectTasksTable';
 
-export async function ProjectTasksSection({
-  projectId,
-}: {
-  projectId: number;
-}) {
+export async function ProjectTasksSection({ projectId }: { projectId: number }) {
   const session = await getServerSession(authOptions);
 
   if (!session?.user) {
@@ -55,9 +51,7 @@ export async function ProjectTasksSection({
     <section className="space-y-4">
       <div>
         <h2 className="text-lg font-semibold">Tasks</h2>
-        <p className="text-sm text-gray-600">
-          Project work items ordered by planned end date.
-        </p>
+        <p className="text-sm text-gray-600">Project work items ordered by planned end date.</p>
       </div>
 
       <ProjectTasksTable items={items} />
