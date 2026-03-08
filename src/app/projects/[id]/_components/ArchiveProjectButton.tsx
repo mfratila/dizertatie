@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { archiveProjectAction } from './archive-action';
+import { archiveProjectAction } from '../_actions/archive-action';
 import { useRouter } from 'next/navigation';
 
 export default function ArchiveProjectButton({ projectId }: { projectId: number }) {

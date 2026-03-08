@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/page-guards';
 import { Role, ProjectStatus } from '@prisma/client';
-import { isValidDate } from './utils';
+import { isValidDate } from '../_utils/utils';
 
 export async function createProjectAction(formData: FormData) {
   // RBAC: doar Admin/PM pot crea

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { updateProjectAction } from './actions';
+import { updateProjectAction } from '../_actions/actions';
 
 export default function EditProjectInline({
   projectId,

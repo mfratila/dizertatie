@@ -1,8 +1,8 @@
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/page-guards';
 import { Role } from '@prisma/client';
-import CreateProjectInline from './CreateProjectInline';
-import { formatDate, formatMoney } from './utils';
+import CreateProjectInline from './_components/CreateProjectInline';
+import { formatDate, formatMoney } from './_utils/utils';
 
 export default async function ProjectsPage() {
   const session = await requireAuth();
