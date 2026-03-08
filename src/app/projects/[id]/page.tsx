@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { formatDate, formatMoney } from '../utils';
 import EditProjectInline from './EditProjectInline';
 import MembersSection from './members/MembersSection';
+import ArchiveProjectButton from './ArchiveProjectButton';
 
 export default async function ProjectDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireAuth();
@@ -41,6 +42,7 @@ export default async function ProjectDetailsPage({ params }: { params: Promise<{
       startDate: true,
       endDate: true,
       plannedBudget: true,
+      archivedAt: true,
       members: {
         select: {
           userId: true,
@@ -61,6 +63,7 @@ export default async function ProjectDetailsPage({ params }: { params: Promise<{
 
   const canEditProject = role === Role.ADMIN || (role === Role.PM && isPmInProject);
   const canManageMembers = role === Role.ADMIN || (role === Role.PM && isPmInProject);
+  const canArchive = role === Role.ADMIN || (role === Role.PM && isPmInProject);
 
   return (
     <div style={{ padding: 24 }}>
@@ -68,6 +71,7 @@ export default async function ProjectDetailsPage({ params }: { params: Promise<{
         <h1 style={{ fontSize: 24, fontWeight: 600 }}>{project.name}</h1>
         <div style={{ color: '#666' }}>Project ID: {project.id}</div>
 
+        {canArchive && !project.archivedAt && <ArchiveProjectButton projectId={project.id} />}
         {/* ✅ Edit project: Admin OR PM-in-project */}
         {canEditProject && (
           <EditProjectInline
