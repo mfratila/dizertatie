@@ -1,0 +1,503 @@
+# EPIC 6 – WBS & Progress Tracking (Work Items) (MVP)
+## Story 1: Define work item model & rules (spec)
+
+---
+
+## 1. Obiectiv
+
+Acest document definește în mod clar și neambiguu:
+
+- modelul **WorkItem** pentru MVP;
+- regulile de acces și modificare;
+- semnificația câmpului `progressPercent`;
+- relația dintre Work Items și calculul progresului agregat al proiectului;
+- modul în care progresul este utilizat ulterior în **KPI Engine** pentru calculul **Earned Value (EV)**;
+- limitările asumate explicit în MVP.
+
+Scopul documentului este de a asigura:
+
+- consistență arhitecturală;
+- implementare deterministă;
+- auditabilitate;
+- testabilitate;
+- utilizabilitate directă în documentația de dizertație.
+
+---
+
+## 2. Context arhitectural
+
+Modulul Work Items este introdus după finalizarea modulelor:
+
+- Authentication & RBAC
+- Project Management
+- KPI Engine
+
+În arhitectura aplicației, **WorkItem** reprezintă unitatea minimă de planificare și urmărire a execuției în cadrul unui proiect.
+
+În MVP, Work Items:
+
+- aparțin exact unui proiect;
+- sunt modelate ca o listă simplă de task-uri;
+- nu formează o ierarhie WBS completă;
+- nu au dependențe între ele;
+- nu au ponderi diferențiate;
+- furnizează baza pentru calculul progresului agregat al proiectului.
+
+---
+
+## 3. Definiția Work Item-ului în MVP
+
+### 3.1. Definiție
+
+Un **WorkItem** este o activitate planificată din cadrul unui proiect, utilizată pentru:
+
+- organizarea minimă a execuției;
+- urmărirea progresului;
+- atribuirea opțională a responsabilității;
+- agregarea progresului la nivel de proiect;
+- alimentarea calculului **EV** din KPI Engine.
+
+### 3.2. Rol în sistem
+
+WorkItem este o entitate operațională intermediară între:
+
+- nivelul managerial al proiectului (`Project`)
+- și nivelul de execuție / monitorizare a progresului (`progressPercent`)
+
+În MVP, WorkItem nu modelează:
+
+- durate estimate avansate;
+- effort points;
+- dependențe logice;
+- critical path;
+- milestones separate;
+- subtask-uri.
+
+---
+
+## 4. Modelul de date WorkItem (MVP)
+
+### 4.1. Câmpuri
+
+| Câmp | Tip | Obligatoriu | Descriere |
+|---|---|---:|---|
+| `id` | string / int | Da | Identificator unic al work item-ului |
+| `projectId` | string / int | Da | Referință către proiectul din care face parte |
+| `title` | string | Da | Titlul activității |
+| `description` | text | Nu | Descriere opțională a activității |
+| `plannedStartDate` | datetime/date | Nu | Data planificată de început |
+| `plannedEndDate` | datetime/date | Da | Data planificată de final |
+| `status` | enum | Da | Starea operațională a activității |
+| `progressPercent` | integer | Da | Progresul activității, în intervalul 0–100 |
+| `assignedUserId` | string / int | Nu | Utilizatorul responsabil, dacă există |
+| `createdAt` | datetime | Da | Timpul creării |
+| `updatedAt` | datetime | Da | Timpul ultimei actualizări |
+
+---
+
+## 5. Enum-uri și valori permise
+
+### 5.1. Status WorkItem
+
+Enum-ul `WorkItemStatus` are valorile:
+
+- `TODO`
+- `IN_PROGRESS`
+- `DONE`
+
+### 5.2. Semnificație operațională
+
+#### TODO
+Activitatea este definită, dar nu a început.
+
+#### IN_PROGRESS
+Activitatea este în curs de execuție.
+
+#### DONE
+Activitatea este finalizată operațional.
+
+---
+
+## 6. Reguli de validare (MVP)
+
+### 6.1. Reguli generale
+
+1. `title` este obligatoriu și trebuie să fie non-empty după `trim`.
+2. `plannedEndDate` este obligatoriu.
+3. `plannedStartDate` este opțional.
+4. Dacă `plannedStartDate` este prezent, atunci:
+   - `plannedEndDate >= plannedStartDate`
+5. `progressPercent` trebuie să fie un număr întreg în intervalul:
+   - `0 <= progressPercent <= 100`
+6. `status` trebuie să aparțină enum-ului:
+   - `TODO | IN_PROGRESS | DONE`
+7. `assignedUserId`, dacă este prezent, trebuie să refere un utilizator existent.
+8. `assignedUserId`, dacă este prezent, trebuie să respecte regulile de membership ale proiectului.
+
+### 6.2. Reguli de consistență între status și progres
+
+Pentru MVP se adoptă următoarele reguli:
+
+1. Dacă `status = TODO`, atunci:
+   - `progressPercent` poate fi doar `0`
+2. Dacă `status = DONE`, atunci:
+   - `progressPercent` trebuie să fie `100`
+3. Dacă `status = IN_PROGRESS`, atunci:
+   - `progressPercent` trebuie să fie între `1` și `99`
+
+### 6.3. Rațiune
+
+Aceste reguli reduc ambiguitatea semantică și simplifică:
+
+- afișarea în UI;
+- testarea;
+- calculul progresului agregat;
+- documentarea academică.
+
+---
+
+## 7. Relații și constrângeri
+
+### 7.1. Relație cu Project
+
+- Un `Project` are `0..N` Work Items.
+- Un `WorkItem` aparține exact unui `Project`.
+
+### 7.2. Relație cu User (assigned user)
+
+- Un `WorkItem` poate avea `0..1` utilizator atribuit.
+- Un `User` poate fi atribuit la `0..N` Work Items.
+
+### 7.3. Regula de apartenență
+
+Dacă `assignedUserId` este setat, utilizatorul atribuit trebuie să fie:
+
+- fie membru al proiectului,
+- fie administrator al sistemului.
+
+În MVP, atribuirea către utilizatori din afara proiectului este interzisă.
+
+---
+
+## 8. RBAC pentru Work Items
+
+Controlul accesului urmează modelul deja stabilit în sistem: rol global + membership la nivel de proiect.
+
+### 8.1. Reguli generale
+
+#### ADMIN
+Poate efectua orice operație CRUD asupra Work Items din orice proiect.
+
+#### PM
+Poate efectua operații CRUD asupra Work Items doar în proiectele unde este PM.
+
+#### MEMBER
+Are acces de citire la Work Items din proiectele din care face parte.
+Poate actualiza progresul task-urilor conform regulilor MVP.
+
+#### VIEWER
+Are acces doar de citire la Work Items din proiectele din care face parte.
+
+---
+
+## 9. Matrice RBAC – Work Items (MVP)
+
+| Operație | ADMIN | PM proiect | MEMBER | VIEWER |
+|---|---:|---:|---:|---:|
+| List work items | ✔ | ✔ | ✔ | ✔ |
+| Read work item | ✔ | ✔ | ✔ | ✔ |
+| Create work item | ✔ | ✔ | ✖ | ✖ |
+| Update details | ✔ | ✔ | ✖ | ✖ |
+| Update progress | ✔ | ✔ | ✔* | ✖ |
+| Delete work item | ✔ | ✔ | ✖ | ✖ |
+
+`*` Pentru `MEMBER`, actualizarea progresului este permisă numai în condițiile definite mai jos.
+
+---
+
+## 10. Regula pentru actualizarea progresului de către MEMBER
+
+Pentru MVP se alege varianta mai sigură și mai coerentă auditabil:
+
+### Regula adoptată
+Un utilizator cu rol `MEMBER` poate actualiza progresul **doar pentru work item-urile care îi sunt atribuite**.
+
+### Condiții cumulative
+
+1. utilizatorul este membru al proiectului;
+2. `assignedUserId == currentUser.id`;
+3. proiectul nu este arhivat;
+4. utilizatorul are sesiune validă.
+
+### Motivație
+
+Această regulă:
+
+- reduce riscul modificării arbitrare a progresului;
+- face responsabilitatea mai clară;
+- este mai ușor de justificat academic;
+- păstrează MVP-ul simplu.
+
+### Excepții
+
+- `ADMIN` și `PM` pot actualiza progresul oricărui WorkItem din proiectele permise.
+- Dacă `assignedUserId` este `null`, atunci doar `ADMIN` și `PM` pot actualiza progresul.
+
+---
+
+## 11. Vizibilitate și reguli de acces
+
+### 11.1. Listare Work Items
+
+Un utilizator poate lista Work Items dacă:
+
+- este `ADMIN`
+- sau este membru al proiectului
+
+### 11.2. Citire Work Item individual
+
+Un utilizator poate vedea un WorkItem dacă:
+
+- este `ADMIN`
+- sau există membership valid pe proiect
+
+### 11.3. Modificare / ștergere
+
+Permis doar pentru:
+
+- `ADMIN`
+- `PM` al proiectului
+
+### 11.4. Proiect arhivat
+
+Pentru proiectele arhivate:
+
+- Work Items rămân vizibile în read-only pentru utilizatorii autorizați;
+- nu mai pot fi create, modificate sau șterse;
+- progresul nu mai poate fi actualizat.
+
+---
+
+## 12. Semnificația lui progressPercent în MVP
+
+### 12.1. Definiție
+
+`progressPercent` exprimă procentul de realizare al activității la momentul curent, în intervalul `[0, 100]`.
+
+### 12.2. Interpretare
+
+- `0` = activitatea nu a început
+- `100` = activitatea este finalizată
+- valorile intermediare reflectă aprecierea progresului operațional curent
+
+### 12.3. Natură managerială
+
+În MVP, `progressPercent` este o valoare declarativă, introdusă de utilizatorii autorizați.
+Nu se calculează automat din:
+
+- timesheets,
+- costuri,
+- subtasks,
+- checklist-uri.
+
+Această alegere reduce complexitatea implementării și permite utilizarea progresului ca proxy operațional pentru earned value.
+
+---
+
+## 13. Utilizarea progresului în KPI Engine
+
+### 13.1. Regula de agregare
+
+Progresul proiectului este calculat în MVP ca media aritmetică simplă a valorilor `progressPercent` pentru toate Work Items active ale proiectului:
+
+\[
+projectProgressRatio = average(workItems.progressPercent / 100)
+\]
+
+echivalent cu:
+
+\[
+projectProgressPercent = average(workItems.progressPercent)
+\]
+
+### 13.2. Legătura cu Earned Value
+
+Conform modelului KPI deja adoptat în MVP, **EV** este calculat pe baza progresului agregat al proiectului:
+
+\[
+EV = BAC \times progressRatio
+\]
+
+unde:
+
+- `BAC = Project.plannedBudget`
+- `progressRatio = average(workItems.progressPercent) / 100`
+
+### 13.3. Implicație
+
+Fiecare WorkItem contribuie egal la progresul total al proiectului.
+
+Aceasta înseamnă că, în MVP:
+
+- nu există ponderare după cost;
+- nu există ponderare după durată;
+- nu există ponderare după complexitate.
+
+---
+
+## 14. Reguli pentru calculul progresului agregat al proiectului
+
+### 14.1. Helper server-side
+
+Sistemul va include un helper server-side responsabil pentru:
+
+- extragerea Work Items ale proiectului;
+- validarea valorilor de progres;
+- calculul progresului mediu;
+- returnarea rezultatului într-un format utilizabil de KPI Engine.
+
+### 14.2. Regula pentru proiect fără Work Items
+
+Dacă proiectul nu are niciun WorkItem, atunci progresul agregat este:
+
+- `0%`
+- respectiv `progressRatio = 0`
+
+### 14.3. Determinism
+
+Helper-ul trebuie să fie:
+
+- pur la nivel de calcul;
+- predictibil;
+- testabil prin unit tests.
+
+---
+
+## 15. Reguli de business suplimentare
+
+### 15.1. Crearea Work Item-ului
+
+La creare:
+
+- `progressPercent = 0`
+- `status = TODO`
+
+cu excepția cazului în care utilizatorul managerial setează explicit alte valori valide.
+
+### 15.2. Actualizarea statusului
+
+La update trebuie menținută coerența:
+
+- `TODO` ↔ `0`
+- `IN_PROGRESS` ↔ `1..99`
+- `DONE` ↔ `100`
+
+### 15.3. Asignare utilizator
+
+`assignedUserId` este opțional.
+Task-urile neasignate sunt permise.
+
+### 15.4. Soft assumptions
+
+În MVP, WorkItem nu are:
+
+- owner istoric;
+- comentarii;
+- atașamente;
+- audit trail extins;
+- log de modificări al progresului.
+
+---
+
+## 16. Limitările MVP
+
+Acest story definește explicit următoarele limitări:
+
+### 16.1. Fără ierarhie WBS
+Nu există relații parent-child între Work Items.
+
+### 16.2. Fără dependențe
+Nu există relații de tip:
+
+- finish-to-start
+- start-to-start
+- blocking
+- predecessor / successor
+
+### 16.3. Fără weighting
+Toate task-urile au aceeași pondere în progresul total.
+
+### 16.4. Fără scheduling avansat
+Nu există:
+
+- Gantt
+- critical path
+- slack / float
+- rescheduling automat
+
+### 16.5. Fără derivare automată a progresului
+Progresul nu se calculează din ore, costuri sau milestone-uri.
+
+### 16.6. Fără multi-assignee
+Un WorkItem poate avea maximum un utilizator atribuit.
+
+---
+
+## 17. Coduri de eroare și comportament API așteptat
+
+### 17.1. Erori de autentificare / autorizare
+
+- `401 Unauthorized` – fără sesiune validă
+- `403 Forbidden` – sesiune validă, dar fără drepturi suficiente
+
+### 17.2. Erori de validare
+
+- `400 Bad Request` – payload invalid
+- `404 Not Found` – proiect sau work item inexistent
+- `409 Conflict` – conflict de business rule, dacă este cazul
+
+### 17.3. Exemple de conflicte
+
+- `assignedUserId` nu aparține proiectului
+- `progressPercent` incompatibil cu `status`
+- actualizare progres de către MEMBER pe task neasignat lui
+
+---
+
+## 18. Implicații pentru implementare
+
+Acest story fixează deciziile de design pentru implementările următoare:
+
+1. CRUD-ul WorkItem va fi scoped la `projectId`.
+2. Validările de progres și status trebuie făcute server-side.
+3. Helper-ul de progres agregat va fi reutilizat de KPI Engine.
+4. UI-ul trebuie să diferențieze:
+   - editarea detaliilor task-ului
+   - editarea progresului
+5. RBAC trebuie să fie centralizat și coerent cu modulele anterioare.
+
+---
+
+## 19. Concluzie
+
+Specificația WorkItem pentru MVP definește un model minimal, coerent și suficient pentru:
+
+- gestionarea task-urilor la nivel de proiect;
+- urmărirea progresului;
+- controlul accesului prin RBAC;
+- calculul progresului agregat;
+- alimentarea KPI Engine-ului prin derivarea EV.
+
+Prin limitarea deliberată a complexității (fără ierarhie, fără dependențe, fără weighting), soluția rămâne:
+
+- ușor de implementat;
+- ușor de testat;
+- auditabilă;
+- justificabilă academic;
+- extensibilă în iterații ulterioare.
+
+---
+
+## 20. Status
+
+**READY FOR IMPLEMENTATION**

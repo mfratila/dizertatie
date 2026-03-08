@@ -1,11 +1,13 @@
-
 # Modulul Project Management (MVP)
+
 ## Documentație pentru lucrarea de disertație
 
 ### Context general
+
 Modulul **Project Management** reprezintă componenta centrală a aplicației dezvoltate în cadrul lucrării de disertație. Rolul acestui modul este de a gestiona entitățile de tip proiect, membrii acestora și regulile de acces, oferind infrastructura necesară pentru colectarea datelor operaționale și pentru calculul indicatorilor KPI (CPI, SPI, Burn Rate) în modulul KPI Engine.
 
 Acest modul este implementat într-o arhitectură web modernă, utilizând:
+
 - **Next.js (App Router)** pentru API și interfață
 - **Prisma ORM** pentru accesul la baza de date
 - **PostgreSQL** pentru persistența datelor
@@ -13,6 +15,7 @@ Acest modul este implementat într-o arhitectură web modernă, utilizând:
 - **RBAC (Role Based Access Control)** pentru controlul accesului
 
 Modulul Project Management este dezvoltat incremental, conform principiilor Agile, și constituie baza pentru modulele ulterioare:
+
 - Task Management
 - Execution Tracking
 - KPI Engine
@@ -22,24 +25,25 @@ Modulul Project Management este dezvoltat incremental, conform principiilor Agil
 # 1. Use‑Cases ale modulului Project
 
 ## Actori
-| Actor | Descriere |
-|------|-----------|
-| Admin | administratorul sistemului |
-| PM | project manager responsabil de proiect |
-| Member | membru al proiectului |
+
+| Actor  | Descriere                               |
+| ------ | --------------------------------------- |
+| Admin  | administratorul sistemului              |
+| PM     | project manager responsabil de proiect  |
+| Member | membru al proiectului                   |
 | Viewer | utilizator cu acces doar la vizualizare |
 
 ## Tabel Use‑Cases
 
-| Use Case | Actor | Descriere |
-|--------|------|-----------|
-| Create Project | Admin, PM | creează un proiect nou |
-| View Projects | Toți utilizatorii autentificați | vizualizează proiectele accesibile |
-| View Project Details | Admin, membri proiect | vizualizează detaliile proiectului |
-| Update Project | Admin, PM proiect | modifică parametrii proiectului |
-| Manage Members | Admin, PM proiect | adaugă sau elimină membri |
-| Archive Project | Admin, PM proiect | arhivează proiectul |
-| Access KPI | Membrii proiectului | accesează indicatorii de performanță |
+| Use Case             | Actor                           | Descriere                            |
+| -------------------- | ------------------------------- | ------------------------------------ |
+| Create Project       | Admin, PM                       | creează un proiect nou               |
+| View Projects        | Toți utilizatorii autentificați | vizualizează proiectele accesibile   |
+| View Project Details | Admin, membri proiect           | vizualizează detaliile proiectului   |
+| Update Project       | Admin, PM proiect               | modifică parametrii proiectului      |
+| Manage Members       | Admin, PM proiect               | adaugă sau elimină membri            |
+| Archive Project      | Admin, PM proiect               | arhivează proiectul                  |
+| Access KPI           | Membrii proiectului             | accesează indicatorii de performanță |
 
 ---
 
@@ -48,12 +52,14 @@ Modulul Project Management este dezvoltat incremental, conform principiilor Agil
 Controlul accesului este implementat prin modelul **RBAC (Role Based Access Control)**.
 
 ## Roluri globale
+
 - **ADMIN**
 - **PM**
 - **MEMBER**
 - **VIEWER**
 
 ## Roluri în contextul proiectului
+
 În interiorul unui proiect există roluri specifice:
 
 - **PM**
@@ -62,14 +68,14 @@ Controlul accesului este implementat prin modelul **RBAC (Role Based Access Cont
 
 ## Matrice RBAC
 
-| Operație | Admin | PM proiect | Member | Viewer |
-|----------|-------|-----------|--------|--------|
-| Create project | ✔ | ✔ | ✖ | ✖ |
-| View project | ✔ | ✔ | ✔ | ✔ |
-| Update project | ✔ | ✔ | ✖ | ✖ |
-| Manage members | ✔ | ✔ | ✖ | ✖ |
-| Archive project | ✔ | ✔ | ✖ | ✖ |
-| View KPI | ✔ | ✔ | ✔ | ✔ |
+| Operație        | Admin | PM proiect | Member | Viewer |
+| --------------- | ----- | ---------- | ------ | ------ |
+| Create project  | ✔     | ✔          | ✖      | ✖      |
+| View project    | ✔     | ✔          | ✔      | ✔      |
+| Update project  | ✔     | ✔          | ✖      | ✖      |
+| Manage members  | ✔     | ✔          | ✖      | ✖      |
+| Archive project | ✔     | ✔          | ✖      | ✖      |
+| View KPI        | ✔     | ✔          | ✔      | ✔      |
 
 Regulă importantă de integritate:
 
@@ -87,16 +93,16 @@ Modelul **Project** reprezintă entitatea principală a sistemului.
 
 ### Câmpuri principale
 
-| Câmp | Tip | Descriere |
-|-----|----|-----------|
-| id | integer | identificator unic |
-| name | string | numele proiectului |
-| startDate | date | data de început |
-| endDate | date | data de final |
-| plannedBudget (BAC) | decimal | buget planificat |
-| status | enum | starea proiectului |
-| createdAt | datetime | data creării |
-| archivedAt | datetime? | data arhivării (soft delete) |
+| Câmp                | Tip       | Descriere                    |
+| ------------------- | --------- | ---------------------------- |
+| id                  | integer   | identificator unic           |
+| name                | string    | numele proiectului           |
+| startDate           | date      | data de început              |
+| endDate             | date      | data de final                |
+| plannedBudget (BAC) | decimal   | buget planificat             |
+| status              | enum      | starea proiectului           |
+| createdAt           | datetime  | data creării                 |
+| archivedAt          | datetime? | data arhivării (soft delete) |
 
 ### Statusuri proiect
 
@@ -114,12 +120,12 @@ Modelul **ProjectMember** definește relația dintre utilizatori și proiecte.
 
 ### Câmpuri
 
-| Câmp | Tip | Descriere |
-|-----|----|-----------|
-| projectId | integer | referință către proiect |
-| userId | integer | referință către utilizator |
-| roleInProject | enum | rolul utilizatorului |
-| createdAt | datetime | data atribuirii |
+| Câmp          | Tip      | Descriere                  |
+| ------------- | -------- | -------------------------- |
+| projectId     | integer  | referință către proiect    |
+| userId        | integer  | referință către utilizator |
+| roleInProject | enum     | rolul utilizatorului       |
+| createdAt     | datetime | data atribuirii            |
 
 ### Constrângeri
 
@@ -139,6 +145,7 @@ Aceasta asigură integritatea datelor la nivel de bază de date.
 Fluxul tipic al utilizării modulului Project este următorul:
 
 ## 1. Crearea proiectului
+
 Un utilizator cu rol **Admin** sau **PM** creează un proiect nou, specificând:
 
 - numele proiectului
@@ -148,6 +155,7 @@ Un utilizator cu rol **Admin** sau **PM** creează un proiect nou, specificând:
 Implicit, creatorul proiectului devine **PM al proiectului**.
 
 ## 2. Alocarea membrilor
+
 Project Manager-ul poate adăuga membri în proiect și le poate atribui roluri:
 
 - PM
@@ -155,6 +163,7 @@ Project Manager-ul poate adăuga membri în proiect și le poate atribui roluri:
 - VIEWER
 
 ## 3. Colectarea datelor de execuție
+
 În modulele ulterioare ale aplicației sunt introduse:
 
 - activități (tasks)
@@ -164,6 +173,7 @@ Project Manager-ul poate adăuga membri în proiect și le poate atribui roluri:
 Aceste date sunt asociate proiectului.
 
 ## 4. Calculul KPI
+
 Datele colectate sunt utilizate de **KPI Engine** pentru a calcula indicatorii:
 
 - CPI (Cost Performance Index)
@@ -179,13 +189,16 @@ Rezultatele sunt salvate sub formă de **snapshot-uri KPI**.
 Modulul Project reprezintă baza pentru restul sistemului.
 
 ## Task Module
+
 Gestionarea activităților proiectului.
 
 Responsabilități:
+
 - definirea task-urilor
 - urmărirea progresului
 
 ## Execution Module
+
 Colectarea datelor operaționale:
 
 - progres task-uri
@@ -193,6 +206,7 @@ Colectarea datelor operaționale:
 - milestone-uri
 
 ## KPI Engine
+
 Calculează indicatorii de performanță:
 
 - CPI
