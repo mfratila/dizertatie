@@ -35,6 +35,12 @@ enum KpiStatus {
   NA
 }
 
+enum WorkItemStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
 model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique
@@ -43,8 +49,9 @@ model User {
   role      Role     @default(MEMBER)
   createdAt DateTime @default(now())
 
-  memberships ProjectMember[]
-  timesheets  Timesheet[]
+  memberships       ProjectMember[]
+  timesheets        Timesheet[]
+  assignedWorkItems WorkItem[] @relation("AssignedWorkItems")
 }
 
 model Project {
@@ -82,17 +89,24 @@ model ProjectMember {
 }
 
 model WorkItem {
-  id             Int      @id @default(autoincrement())
-  projectId      Int
-  name           String
-  plannedEndDate DateTime
-  progressPercent Int     @default(0)
-  createdAt      DateTime @default(now())
+  id               Int            @id @default(autoincrement())
+  projectId        Int
+  title            String
+  description      String?
+  plannedStartDate DateTime?
+  plannedEndDate   DateTime
+  status           WorkItemStatus @default(TODO)
+  progressPercent  Int            @default(0)
+  assignedUserId   Int?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 
-  project   Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  timesheets Timesheet[]
+  project       Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignedUser  User?      @relation("AssignedWorkItems", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  timesheets    Timesheet[]
 
-  @@index([projectId])
+  @@index([projectId, plannedEndDate])
+  @@index([assignedUserId])
 }
 
 model Timesheet {

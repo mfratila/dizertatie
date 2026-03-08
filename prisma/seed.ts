@@ -1,10 +1,17 @@
-import { PrismaClient, Prisma, Role, ProjectStatus, KpiType, KpiStatus } from '@prisma/client';
+import {
+  PrismaClient,
+  Prisma,
+  Role,
+  ProjectStatus,
+  KpiType,
+  KpiStatus,
+  WorkItemStatus,
+} from '@prisma/client';
 import bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  // --- Demo constants (MVP) ---
   const ADMIN_EMAIL = 'admin@demo.local';
   const PM_EMAIL = 'pm@demo.local';
   const MEMBER_EMAIL = 'member@demo.local';
@@ -13,9 +20,9 @@ async function main() {
   const PROJECT_NAME = 'Project Alpha';
   const PROJECT_2_NAME = 'Project Beta';
 
-  // Deterministic timeframe for demo
   const projectStart = new Date('2026-01-01T00:00:00.000Z');
   const projectEnd = new Date('2026-03-31T00:00:00.000Z');
+
   const adminPasswordHash = await bcrypt.hash('admin123', 10);
   const pmPasswordHash = await bcrypt.hash('pm123', 10);
   const memberPasswordHash = await bcrypt.hash('member123', 10);
@@ -98,20 +105,20 @@ async function main() {
     },
   });
 
-  // 2) Project
+  // 2) Projects
   const project = await prisma.project.upsert({
     where: { name: PROJECT_NAME },
     update: {
       startDate: projectStart,
       endDate: projectEnd,
-      plannedBudget: new Prisma.Decimal('100000.00'), // BAC
+      plannedBudget: new Prisma.Decimal('100000.00'),
       status: ProjectStatus.ACTIVE,
     },
     create: {
       name: PROJECT_NAME,
       startDate: projectStart,
       endDate: projectEnd,
-      plannedBudget: new Prisma.Decimal('100000.00'), // BAC
+      plannedBudget: new Prisma.Decimal('100000.00'),
       status: ProjectStatus.ACTIVE,
     },
   });
@@ -121,31 +128,21 @@ async function main() {
     update: {
       startDate: projectStart,
       endDate: projectEnd,
-      plannedBudget: new Prisma.Decimal('100000.00'), // BAC
+      plannedBudget: new Prisma.Decimal('100000.00'),
       status: ProjectStatus.ACTIVE,
     },
     create: {
       name: PROJECT_2_NAME,
       startDate: projectStart,
       endDate: projectEnd,
-      plannedBudget: new Prisma.Decimal('100000.00'), // BAC
+      plannedBudget: new Prisma.Decimal('100000.00'),
       status: ProjectStatus.ACTIVE,
     },
   });
 
-  // 3) Project members (User ↔ Project via ProjectMember)
-  await prisma.projectMember.upsert({
-    where: {
-      projectId_userId: { projectId: project.id, userId: admin.id },
-    },
-    update: { roleInProject: Role.ADMIN },
-    create: {
-      projectId: project.id,
-      userId: admin.id,
-      roleInProject: Role.ADMIN,
-    },
-  });
-
+  // 3) Project members
+  // Admin does not strictly need membership if your authz gives ADMIN global bypass.
+  // If you still want admin visible in project members UI, set a valid project-level role.
   await prisma.projectMember.upsert({
     where: {
       projectId_userId: { projectId: project.id, userId: pm.id },
@@ -194,37 +191,41 @@ async function main() {
     },
   });
 
+  // Optional: add admin to project members UI as PM or VIEWER if your schema does not allow ADMIN
+  await prisma.projectMember.upsert({
+    where: {
+      projectId_userId: { projectId: project.id, userId: admin.id },
+    },
+    update: { roleInProject: Role.PM },
+    create: {
+      projectId: project.id,
+      userId: admin.id,
+      roleInProject: Role.PM,
+    },
+  });
+
   // --- Cleanup demo children for idempotency ---
-  // WorkItem has no unique constraint; easiest is delete/recreate children under this project.
   const existingWorkItems = await prisma.workItem.findMany({
     where: { projectId: project.id },
     select: { id: true },
   });
+
   const existingWorkItemIds = existingWorkItems.map((w) => w.id);
 
   await prisma.$transaction(async (tx) => {
-    // Timesheets depend on WorkItem
     if (existingWorkItemIds.length > 0) {
       await tx.timesheet.deleteMany({
         where: { workItemId: { in: existingWorkItemIds } },
       });
     }
 
-    // Cost entries depend on Project
     await tx.costEntry.deleteMany({ where: { projectId: project.id } });
-
-    // Baseline depends on Project (not unique in schema)
     await tx.baseline.deleteMany({ where: { projectId: project.id } });
-
-    // KPI snapshots depend on KPIDefinition (and Project)
     await tx.kPISnapshot.deleteMany({ where: { projectId: project.id } });
-
-    // Work items last
     await tx.workItem.deleteMany({ where: { projectId: project.id } });
   });
 
-  // 4) Baseline (1) — PV total (minimal)
-  // MVP choice: plannedValueTotal mirrors BAC for simplicity in demo.
+  // 4) Baseline
   await prisma.baseline.create({
     data: {
       projectId: project.id,
@@ -234,26 +235,77 @@ async function main() {
     },
   });
 
-  // 5) WorkItems (2)
+  // 5) WorkItems (new shape)
   const workItem1 = await prisma.workItem.create({
     data: {
       projectId: project.id,
-      name: 'Design & Planning',
+      title: 'Design & Planning',
+      description: 'Requirements definition, scope clarification and initial planning.',
+      plannedStartDate: new Date('2026-01-01T00:00:00.000Z'),
       plannedEndDate: new Date('2026-01-31T00:00:00.000Z'),
+      status: WorkItemStatus.IN_PROGRESS,
       progressPercent: 60,
+      assignedUserId: pm.id,
     },
   });
 
   const workItem2 = await prisma.workItem.create({
     data: {
       projectId: project.id,
-      name: 'Implementation',
+      title: 'Implementation',
+      description: 'Core implementation of the MVP project features.',
+      plannedStartDate: new Date('2026-02-01T00:00:00.000Z'),
       plannedEndDate: new Date('2026-03-15T00:00:00.000Z'),
+      status: WorkItemStatus.IN_PROGRESS,
       progressPercent: 20,
+      assignedUserId: member.id,
     },
   });
 
-  // 6) Timesheets (a few)
+  const workItem3 = await prisma.workItem.create({
+    data: {
+      projectId: project.id,
+      title: 'Final Validation',
+      description: 'Validation, final review and readiness for KPI reporting.',
+      plannedStartDate: new Date('2026-03-16T00:00:00.000Z'),
+      plannedEndDate: new Date('2026-03-28T00:00:00.000Z'),
+      status: WorkItemStatus.TODO,
+      progressPercent: 0,
+      assignedUserId: null,
+    },
+  });
+
+  // Optional demo items for Project Beta so list API has data there too
+  await prisma.workItem.deleteMany({
+    where: { projectId: project2.id },
+  });
+
+  await prisma.workItem.createMany({
+    data: [
+      {
+        projectId: project2.id,
+        title: 'Beta Setup',
+        description: 'Initial setup for Project Beta.',
+        plannedStartDate: new Date('2026-01-05T00:00:00.000Z'),
+        plannedEndDate: new Date('2026-01-20T00:00:00.000Z'),
+        status: WorkItemStatus.DONE,
+        progressPercent: 100,
+        assignedUserId: member2.id,
+      },
+      {
+        projectId: project2.id,
+        title: 'Beta Analysis',
+        description: 'Analysis phase for Project Beta.',
+        plannedStartDate: new Date('2026-01-21T00:00:00.000Z'),
+        plannedEndDate: new Date('2026-02-10T00:00:00.000Z'),
+        status: WorkItemStatus.IN_PROGRESS,
+        progressPercent: 40,
+        assignedUserId: member2.id,
+      },
+    ],
+  });
+
+  // 6) Timesheets
   await prisma.timesheet.createMany({
     data: [
       {
@@ -263,9 +315,9 @@ async function main() {
         hours: new Prisma.Decimal('6.00'),
       },
       {
-        userId: pm.id,
+        userId: member.id,
         workItemId: workItem2.id,
-        date: new Date('2026-01-12T00:00:00.000Z'),
+        date: new Date('2026-02-12T00:00:00.000Z'),
         hours: new Prisma.Decimal('4.00'),
       },
       {
@@ -277,7 +329,7 @@ async function main() {
     ],
   });
 
-  // 7) CostEntry (1)
+  // 7) CostEntry
   await prisma.costEntry.create({
     data: {
       projectId: project.id,
@@ -286,7 +338,7 @@ async function main() {
     },
   });
 
-  // 8) KPIDefinition (CPI)
+  // 8) KPI definitions
   const cpiDef = await prisma.kPIDefinition.upsert({
     where: { projectId_type: { projectId: project.id, type: KpiType.CPI } },
     update: {
@@ -301,8 +353,7 @@ async function main() {
     },
   });
 
-  // 9) KPIDefinition (SPI)
-  const spiDef = await prisma.kPIDefinition.upsert({
+  await prisma.kPIDefinition.upsert({
     where: { projectId_type: { projectId: project.id, type: KpiType.SPI } },
     update: {
       thresholdGreen: new Prisma.Decimal('1.00'),
@@ -316,13 +367,9 @@ async function main() {
     },
   });
 
-  // 10) KPIDefinition (BURN_RATE)
-  const burnRateDef = await prisma.kPIDefinition.upsert({
+  await prisma.kPIDefinition.upsert({
     where: { projectId_type: { projectId: project.id, type: KpiType.BURN_RATE } },
     update: {
-      // For burn rate, thresholds depend on your interpretation:
-      // lower burn rate is usually better, but our RAG mapping assumes "higher is better".
-      // MVP simplest: define thresholds so higher is considered better OR handle burn rate separately.
       thresholdGreen: new Prisma.Decimal('0.00'),
       thresholdYellow: new Prisma.Decimal('0.00'),
     },
@@ -334,8 +381,7 @@ async function main() {
     },
   });
 
-  // 11) KPISnapshot (1) — minimal history record for CPI
-  // The KPI value here is illustrative; actual computation will be a later story.
+  // 9) KPI snapshot
   await prisma.kPISnapshot.create({
     data: {
       projectId: project.id,
@@ -346,7 +392,9 @@ async function main() {
     },
   });
 
-  console.log('Seed completed: EPIC 2 demo domain data (incl. Baseline + KPISnapshot).');
+  console.log(
+    'Seed completed: demo users, projects, memberships, work items, baseline and KPI data.',
+  );
 }
 
 main()
