@@ -55,6 +55,7 @@ model Project {
   plannedBudget Decimal       @db.Decimal(12, 2)
   status        ProjectStatus @default(PLANNED)
   createdAt     DateTime      @default(now())
+  archivedAt    DateTime?
 
   members        ProjectMember[]
   workItems      WorkItem[]
@@ -62,6 +63,8 @@ model Project {
   baselines      Baseline[]
   kpiDefinitions KPIDefinition[]
   kpiSnapshots   KPISnapshot[]
+
+  @@index([archivedAt])
 }
 
 model ProjectMember {
