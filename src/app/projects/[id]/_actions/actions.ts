@@ -386,3 +386,107 @@ export async function updateWorkItemAction(workItemId: number, formData: FormDat
 
   return { ok: true as const };
 }
+
+export async function updateWorkItemProgressAction(workItemId: number, formData: FormData) {
+  const session = await requireAuth();
+
+  const actorUserId = Number(session.user.id);
+  if (!Number.isInteger(actorUserId)) {
+    return {
+      ok: false as const,
+      message: 'ID-ul utilizatorului din sesiune este invalid.',
+    };
+  }
+
+  const current = await prisma.workItem.findUnique({
+    where: { id: workItemId },
+    select: {
+      id: true,
+      projectId: true,
+      assignedUserId: true,
+      project: {
+        select: {
+          archivedAt: true,
+        },
+      },
+    },
+  });
+
+  if (!current) {
+    return { ok: false as const, message: 'Activitatea nu a fost găsită.' };
+  }
+
+  if (current.project.archivedAt) {
+    return {
+      ok: false as const,
+      message: 'Activitățile dintr-un proiect arhivat nu mai pot fi modificate.',
+    };
+  }
+
+  const isAdmin = session.user.role === Role.ADMIN;
+  let isProjectPm = false;
+  let isAssignedMember = false;
+
+  if (!isAdmin) {
+    const membership = await prisma.projectMember.findUnique({
+      where: {
+        projectId_userId: {
+          projectId: current.projectId,
+          userId: actorUserId,
+        },
+      },
+      select: { roleInProject: true },
+    });
+
+    if (membership?.roleInProject === Role.PM) {
+      isProjectPm = true;
+    }
+
+    if (
+      membership?.roleInProject === Role.MEMBER &&
+      current.assignedUserId === actorUserId
+    ) {
+      isAssignedMember = true;
+    }
+  }
+
+  if (!isAdmin && !isProjectPm && !isAssignedMember) {
+    return {
+      ok: false as const,
+      message: 'Nu ai permisiunea de a actualiza progresul acestei activități.',
+    };
+  }
+
+  const progressRaw = String(formData.get('progressPercent') ?? '').trim();
+  const progressPercent = Number(progressRaw);
+
+  if (!Number.isInteger(progressPercent) || progressPercent < 0 || progressPercent > 100) {
+    return {
+      ok: false as const,
+      message: 'Progresul trebuie să fie un număr întreg între 0 și 100.',
+    };
+  }
+
+  let status: WorkItemStatus;
+
+  if (progressPercent === 0) {
+    status = WorkItemStatus.TODO;
+  } else if (progressPercent === 100) {
+    status = WorkItemStatus.DONE;
+  } else {
+    status = WorkItemStatus.IN_PROGRESS;
+  }
+
+  await prisma.workItem.update({
+    where: { id: workItemId },
+    data: {
+      progressPercent,
+      status,
+    },
+  });
+
+  revalidatePath(`/projects/${current.projectId}`);
+  revalidatePath(`/projects/${current.projectId}/tasks`);
+
+  return { ok: true as const };
+}

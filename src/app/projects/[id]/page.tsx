@@ -9,6 +9,7 @@ import { formatDate, formatMoney } from '../_utils/utils';
 import EditProjectInline from './_components/EditProjectInline';
 import CreateWorkItemInline from './_components/CreateWorkItemInline';
 import EditWorkItemInline from './_components/EditWorkItemInline';
+import UpdateWorkItemProgressInline from './_components/UpdateWorkItemProgressInline';
 import MembersSection from './members/MembersSection';
 import ArchiveProjectButton from './_components/ArchiveProjectButton';
 
@@ -27,8 +28,6 @@ export default async function ProjectDetailsPage({
 
   if (!Number.isInteger(projectId)) notFound();
 
-  // 1) Regula de acces la proiect:
-  // Admin SAU membru în proiect
   let actorMembership: { roleInProject: string } | null = null;
 
   if (role !== Role.ADMIN) {
@@ -40,7 +39,6 @@ export default async function ProjectDetailsPage({
     if (!actorMembership) notFound();
   }
 
-  // 2) Încarcă proiectul + membri
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     select: {
@@ -71,7 +69,6 @@ export default async function ProjectDetailsPage({
 
   if (!project) notFound();
 
-  // 3) Încarcă work items
   const workItems = await prisma.workItem.findMany({
     where: { projectId: project.id },
     orderBy: [{ plannedEndDate: 'asc' }, { createdAt: 'asc' }],
@@ -93,14 +90,13 @@ export default async function ProjectDetailsPage({
     },
   });
 
-  // 4) Permisiuni
-  const isPmInProject = role === Role.ADMIN ? true : actorMembership?.roleInProject === 'PM';
+  const isPmInProject = actorMembership?.roleInProject === 'PM';
 
-  const canEditProject = role === Role.ADMIN || (role === Role.PM && isPmInProject);
-  const canManageMembers = role === Role.ADMIN || (role === Role.PM && isPmInProject);
-  const canArchive = role === Role.ADMIN || (role === Role.PM && isPmInProject);
-  const canCreateWorkItems = role === Role.ADMIN || (role === Role.PM && isPmInProject);
-  const canEditWorkItems = role === Role.ADMIN || (role === Role.PM && isPmInProject);
+  const canEditProject = role === Role.ADMIN || isPmInProject;
+  const canManageMembers = role === Role.ADMIN || isPmInProject;
+  const canArchive = role === Role.ADMIN || isPmInProject;
+  const canCreateWorkItems = role === Role.ADMIN || isPmInProject;
+  const canEditWorkItems = role === Role.ADMIN || isPmInProject;
 
   const projectMembersForSelect = project.members.map((m) => ({
     userId: m.userId,
@@ -200,44 +196,68 @@ export default async function ProjectDetailsPage({
                   <th style={thStyle}>Progres</th>
                   <th style={thStyle}>Data finală planificată</th>
                   <th style={thStyle}>Responsabil</th>
-                  <th style={thStyle}>Acțiuni</th>
+                  <th style={thStyle}>Plan</th>
+                  <th style={thStyle}>Progres</th>
                 </tr>
               </thead>
               <tbody>
-                {workItems.map((item) => (
-                  <tr key={item.id}>
-                    <td style={tdStyle}>
-                      <div style={{ fontWeight: 500 }}>{item.title}</div>
-                      {item.description ? (
-                        <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 4 }}>
-                          {item.description}
-                        </div>
-                      ) : null}
-                    </td>
-                    <td style={tdStyle}>{formatWorkItemStatus(String(item.status))}</td>
-                    <td style={tdStyle}>{item.progressPercent}%</td>
-                    <td style={tdStyle}>{formatDate(item.plannedEndDate)}</td>
-                    <td style={tdStyle}>{item.assignedUser?.name ?? 'Nealocat'}</td>
-                    <td style={tdStyle}>
-                      {canEditWorkItems && !project.archivedAt ? (
-                        <EditWorkItemInline
-                          workItem={{
-                            id: item.id,
-                            title: item.title,
-                            plannedEndDate: item.plannedEndDate.toISOString().split('T')[0],
-                            status: String(item.status) as 'TODO' | 'IN_PROGRESS' | 'DONE',
-                            assignedUserId: item.assignedUserId,
-                          }}
-                          members={projectMembersForSelect}
-                          projectStartDate={projectStartDateStr}
-                          projectEndDate={projectEndDateStr}
-                        />
-                      ) : (
-                        '—'
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {workItems.map((item) => {
+                  const canUpdateProgress =
+                    !project.archivedAt &&
+                    (
+                      role === Role.ADMIN ||
+                      isPmInProject ||
+                      (actorMembership?.roleInProject === 'MEMBER' && item.assignedUserId === userId)
+                    );
+
+                  return (
+                    <tr key={item.id}>
+                      <td style={tdStyle}>
+                        <div style={{ fontWeight: 500 }}>{item.title}</div>
+                        {item.description ? (
+                          <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 4 }}>
+                            {item.description}
+                          </div>
+                        ) : null}
+                      </td>
+                      <td style={tdStyle}>{formatWorkItemStatus(String(item.status))}</td>
+                      <td style={tdStyle}>{item.progressPercent}%</td>
+                      <td style={tdStyle}>{formatDate(item.plannedEndDate)}</td>
+                      <td style={tdStyle}>{item.assignedUser?.name ?? 'Nealocat'}</td>
+                      <td style={tdStyle}>
+                        {canEditWorkItems && !project.archivedAt ? (
+                          <EditWorkItemInline
+                            workItem={{
+                              id: item.id,
+                              title: item.title,
+                              plannedEndDate: item.plannedEndDate.toISOString().split('T')[0],
+                              status: String(item.status) as 'TODO' | 'IN_PROGRESS' | 'DONE',
+                              assignedUserId: item.assignedUserId,
+                            }}
+                            members={projectMembersForSelect}
+                            projectStartDate={projectStartDateStr}
+                            projectEndDate={projectEndDateStr}
+                          />
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                      <td style={tdStyle}>
+                        {canUpdateProgress ? (
+                          <UpdateWorkItemProgressInline
+                            workItem={{
+                              id: item.id,
+                              title: item.title,
+                              progressPercent: item.progressPercent,
+                            }}
+                          />
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
