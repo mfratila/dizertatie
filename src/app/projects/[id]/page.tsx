@@ -4,14 +4,19 @@ import { Role } from '@prisma/client';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import type { CSSProperties } from 'react';
-import CreateWorkItemInline from './_components/CreateWorkItemInline';
 
 import { formatDate, formatMoney } from '../_utils/utils';
 import EditProjectInline from './_components/EditProjectInline';
+import CreateWorkItemInline from './_components/CreateWorkItemInline';
+import EditWorkItemInline from './_components/EditWorkItemInline';
 import MembersSection from './members/MembersSection';
 import ArchiveProjectButton from './_components/ArchiveProjectButton';
 
-export default async function ProjectDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ProjectDetailsPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const session = await requireAuth();
 
   const userId = Number(session.user.id);
@@ -77,6 +82,7 @@ export default async function ProjectDetailsPage({ params }: { params: Promise<{
       status: true,
       progressPercent: true,
       plannedEndDate: true,
+      assignedUserId: true,
       assignedUser: {
         select: {
           id: true,
@@ -94,6 +100,16 @@ export default async function ProjectDetailsPage({ params }: { params: Promise<{
   const canManageMembers = role === Role.ADMIN || (role === Role.PM && isPmInProject);
   const canArchive = role === Role.ADMIN || (role === Role.PM && isPmInProject);
   const canCreateWorkItems = role === Role.ADMIN || (role === Role.PM && isPmInProject);
+  const canEditWorkItems = role === Role.ADMIN || (role === Role.PM && isPmInProject);
+
+  const projectMembersForSelect = project.members.map((m) => ({
+    userId: m.userId,
+    name: m.user.name,
+    email: m.user.email,
+  }));
+
+  const projectStartDateStr = project.startDate.toISOString().split('T')[0];
+  const projectEndDateStr = project.endDate.toISOString().split('T')[0];
 
   return (
     <div style={{ padding: 24 }}>
@@ -108,8 +124,8 @@ export default async function ProjectDetailsPage({ params }: { params: Promise<{
             projectId={project.id}
             initial={{
               name: project.name,
-              startDate: project.startDate.toISOString().split('T')[0],
-              endDate: project.endDate.toISOString().split('T')[0],
+              startDate: projectStartDateStr,
+              endDate: projectEndDateStr,
               plannedBudget: Number(project.plannedBudget),
               status: String(project.status),
             }}
@@ -118,7 +134,9 @@ export default async function ProjectDetailsPage({ params }: { params: Promise<{
       </div>
 
       <section style={{ marginBottom: 20 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>Prezentare generală</h2>
+        <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>
+          Prezentare generală
+        </h2>
         <div style={{ display: 'grid', gap: 6 }}>
           <div>
             <strong>Stare:</strong> {String(project.status)}
@@ -149,20 +167,18 @@ export default async function ProjectDetailsPage({ params }: { params: Promise<{
 
       <section style={{ marginTop: 20 }}>
         <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>Activități</h2>
+
         {canCreateWorkItems && !project.archivedAt && (
           <CreateWorkItemInline
             projectId={project.id}
             initial={{
-              plannedStartDateMin: project.startDate.toISOString().split('T')[0],
-              plannedEndDateMax: project.endDate.toISOString().split('T')[0],
+              plannedStartDateMin: projectStartDateStr,
+              plannedEndDateMax: projectEndDateStr,
             }}
-            members={project.members.map((m) => ({
-              userId: m.userId,
-              name: m.user.name,
-              email: m.user.email,
-            }))}
+            members={projectMembersForSelect}
           />
         )}
+
         {workItems.length === 0 ? (
           <div style={{ color: '#9ca3af' }}>
             Nu există activități definite pentru acest proiect.
@@ -184,6 +200,7 @@ export default async function ProjectDetailsPage({ params }: { params: Promise<{
                   <th style={thStyle}>Progres</th>
                   <th style={thStyle}>Data finală planificată</th>
                   <th style={thStyle}>Responsabil</th>
+                  <th style={thStyle}>Acțiuni</th>
                 </tr>
               </thead>
               <tbody>
@@ -201,6 +218,24 @@ export default async function ProjectDetailsPage({ params }: { params: Promise<{
                     <td style={tdStyle}>{item.progressPercent}%</td>
                     <td style={tdStyle}>{formatDate(item.plannedEndDate)}</td>
                     <td style={tdStyle}>{item.assignedUser?.name ?? 'Nealocat'}</td>
+                    <td style={tdStyle}>
+                      {canEditWorkItems && !project.archivedAt ? (
+                        <EditWorkItemInline
+                          workItem={{
+                            id: item.id,
+                            title: item.title,
+                            plannedEndDate: item.plannedEndDate.toISOString().split('T')[0],
+                            status: String(item.status) as 'TODO' | 'IN_PROGRESS' | 'DONE',
+                            assignedUserId: item.assignedUserId,
+                          }}
+                          members={projectMembersForSelect}
+                          projectStartDate={projectStartDateStr}
+                          projectEndDate={projectEndDateStr}
+                        />
+                      ) : (
+                        '—'
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -223,3 +223,166 @@ export async function createWorkItemAction(projectId: number, formData: FormData
 
   return { ok: true as const };
 }
+
+export async function updateWorkItemAction(workItemId: number, formData: FormData) {
+  const session = await requireAuth([Role.ADMIN, Role.PM]);
+
+  const actorUserId = Number(session.user.id);
+  if (!Number.isInteger(actorUserId)) {
+    return { ok: false as const, message: 'ID-ul utilizatorului din sesiune este invalid.' };
+  }
+
+  const current = await prisma.workItem.findUnique({
+    where: { id: workItemId },
+    select: {
+      id: true,
+      projectId: true,
+      progressPercent: true,
+      project: {
+        select: {
+          id: true,
+          startDate: true,
+          endDate: true,
+          archivedAt: true,
+        },
+      },
+    },
+  });
+
+  if (!current) {
+    return { ok: false as const, message: 'Activitatea nu a fost găsită.' };
+  }
+
+  if (current.project.archivedAt) {
+    return {
+      ok: false as const,
+      message: 'Activitățile dintr-un proiect arhivat nu mai pot fi modificate.',
+    };
+  }
+
+  if (session.user.role === Role.PM) {
+    const membership = await prisma.projectMember.findUnique({
+      where: {
+        projectId_userId: {
+          projectId: current.projectId,
+          userId: actorUserId,
+        },
+      },
+      select: { roleInProject: true },
+    });
+
+    if (!membership || String(membership.roleInProject) !== Role.PM) {
+      return {
+        ok: false as const,
+        message: 'Nu ai permisiunea de a modifica această activitate.',
+      };
+    }
+  }
+
+  const title = String(formData.get('title') ?? '').trim();
+  const plannedEndDateStr = String(formData.get('plannedEndDate') ?? '').trim();
+  const status = String(formData.get('status') ?? '').trim();
+  const assignedUserIdRaw = String(formData.get('assignedUserId') ?? '').trim();
+
+  if (!title) {
+    return { ok: false as const, message: 'Titlul activității este obligatoriu.' };
+  }
+
+  if (!plannedEndDateStr) {
+    return {
+      ok: false as const,
+      message: 'Data finală planificată este obligatorie.',
+    };
+  }
+
+  const plannedEndDate = new Date(plannedEndDateStr);
+  if (!isValidDate(plannedEndDate)) {
+    return {
+      ok: false as const,
+      message: 'Data finală planificată este invalidă.',
+    };
+  }
+
+  if (
+    plannedEndDate.getTime() < current.project.startDate.getTime() ||
+    plannedEndDate.getTime() > current.project.endDate.getTime()
+  ) {
+    return {
+      ok: false as const,
+      message: 'Data finală planificată trebuie să fie în intervalul proiectului.',
+    };
+  }
+
+  if (!Object.values(WorkItemStatus).includes(status as WorkItemStatus)) {
+    return { ok: false as const, message: 'Status invalid.' };
+  }
+
+  if (status === WorkItemStatus.TODO && current.progressPercent !== 0) {
+    return {
+      ok: false as const,
+      message: 'O activitate cu starea „De făcut” trebuie să aibă progres 0%.',
+    };
+  }
+
+  if (status === WorkItemStatus.DONE && current.progressPercent !== 100) {
+    return {
+      ok: false as const,
+      message: 'O activitate cu starea „Finalizat” trebuie să aibă progres 100%.',
+    };
+  }
+
+  if (
+    status === WorkItemStatus.IN_PROGRESS &&
+    (current.progressPercent <= 0 || current.progressPercent >= 100)
+  ) {
+    return {
+      ok: false as const,
+      message: 'O activitate „În progres” trebuie să aibă progres între 1% și 99%.',
+    };
+  }
+
+  let assignedUserId: number | null = null;
+
+  if (assignedUserIdRaw) {
+    assignedUserId = Number(assignedUserIdRaw);
+
+    if (!Number.isInteger(assignedUserId)) {
+      return {
+        ok: false as const,
+        message: 'Responsabilul selectat este invalid.',
+      };
+    }
+
+    const assignedMembership = await prisma.projectMember.findUnique({
+      where: {
+        projectId_userId: {
+          projectId: current.projectId,
+          userId: assignedUserId,
+        },
+      },
+      select: { userId: true },
+    });
+
+    if (!assignedMembership) {
+      return {
+        ok: false as const,
+        message: 'Responsabilul trebuie să fie membru al proiectului.',
+      };
+    }
+  }
+
+  await prisma.workItem.update({
+    where: { id: workItemId },
+    data: {
+      title,
+      plannedEndDate,
+      assignedUserId,
+      status: status as WorkItemStatus,
+    },
+  });
+
+  revalidatePath(`/projects/${current.projectId}`);
+  revalidatePath(`/projects/${current.projectId}/tasks`);
+
+  return { ok: true as const };
+}
