@@ -4,6 +4,7 @@ import { Role } from '@prisma/client';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import type { CSSProperties } from 'react';
+import CreateWorkItemInline from './_components/CreateWorkItemInline';
 
 import { formatDate, formatMoney } from '../_utils/utils';
 import EditProjectInline from './_components/EditProjectInline';
@@ -92,6 +93,7 @@ export default async function ProjectDetailsPage({ params }: { params: Promise<{
   const canEditProject = role === Role.ADMIN || (role === Role.PM && isPmInProject);
   const canManageMembers = role === Role.ADMIN || (role === Role.PM && isPmInProject);
   const canArchive = role === Role.ADMIN || (role === Role.PM && isPmInProject);
+  const canCreateWorkItems = role === Role.ADMIN || (role === Role.PM && isPmInProject);
 
   return (
     <div style={{ padding: 24 }}>
@@ -147,7 +149,20 @@ export default async function ProjectDetailsPage({ params }: { params: Promise<{
 
       <section style={{ marginTop: 20 }}>
         <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>Activități</h2>
-
+        {canCreateWorkItems && !project.archivedAt && (
+          <CreateWorkItemInline
+            projectId={project.id}
+            initial={{
+              plannedStartDateMin: project.startDate.toISOString().split('T')[0],
+              plannedEndDateMax: project.endDate.toISOString().split('T')[0],
+            }}
+            members={project.members.map((m) => ({
+              userId: m.userId,
+              name: m.user.name,
+              email: m.user.email,
+            }))}
+          />
+        )}
         {workItems.length === 0 ? (
           <div style={{ color: '#9ca3af' }}>
             Nu există activități definite pentru acest proiect.

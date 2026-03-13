@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/page-guards';
-import { Role } from '@prisma/client';
+import { Role, WorkItemStatus } from '@prisma/client';
 import { isValidDate } from '../../_utils/utils';
 
 export async function updateProjectAction(projectId: number, formData: FormData) {
@@ -54,5 +54,172 @@ export async function updateProjectAction(projectId: number, formData: FormData)
 
   revalidatePath(`/projects/${projectId}`);
   revalidatePath(`/projects`);
+  return { ok: true as const };
+}
+
+export async function createWorkItemAction(projectId: number, formData: FormData) {
+  const session = await requireAuth([Role.ADMIN, Role.PM]);
+
+  const actorUserId = Number(session.user.id);
+  if (!Number.isInteger(actorUserId)) {
+    return { ok: false as const, message: 'ID-ul utilizatorului din sesiune este invalid.' };
+  }
+
+  if (session.user.role === Role.PM) {
+    const membership = await prisma.projectMember.findUnique({
+      where: {
+        projectId_userId: {
+          projectId,
+          userId: actorUserId,
+        },
+      },
+      select: { roleInProject: true },
+    });
+
+    if (!membership || String(membership.roleInProject) !== Role.PM) {
+      return {
+        ok: false as const,
+        message: 'Nu ai permisiunea de a crea activități în acest proiect.',
+      };
+    }
+  }
+
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: {
+      id: true,
+      startDate: true,
+      endDate: true,
+      archivedAt: true,
+    },
+  });
+
+  if (!project) {
+    return { ok: false as const, message: 'Proiectul nu a fost găsit.' };
+  }
+
+  if (project.archivedAt) {
+    return {
+      ok: false as const,
+      message: 'Nu se pot crea activități într-un proiect arhivat.',
+    };
+  }
+
+  const title = String(formData.get('title') ?? '').trim();
+  const descriptionRaw = String(formData.get('description') ?? '').trim();
+  const plannedStartDateStr = String(formData.get('plannedStartDate') ?? '').trim();
+  const plannedEndDateStr = String(formData.get('plannedEndDate') ?? '').trim();
+  const assignedUserIdRaw = String(formData.get('assignedUserId') ?? '').trim();
+
+  if (!title) {
+    return {
+      ok: false as const,
+      message: 'Titlul activității este obligatoriu.',
+    };
+  }
+
+  if (!plannedEndDateStr) {
+    return {
+      ok: false as const,
+      message: 'Data finală planificată este obligatorie.',
+    };
+  }
+
+  const plannedEndDate = new Date(plannedEndDateStr);
+  if (!isValidDate(plannedEndDate)) {
+    return {
+      ok: false as const,
+      message: 'Data finală planificată este invalidă.',
+    };
+  }
+
+  const plannedStartDate = plannedStartDateStr ? new Date(plannedStartDateStr) : null;
+  if (plannedStartDateStr && (!plannedStartDate || !isValidDate(plannedStartDate))) {
+    return {
+      ok: false as const,
+      message: 'Data de început planificată este invalidă.',
+    };
+  }
+
+  if (plannedStartDate && plannedEndDate.getTime() < plannedStartDate.getTime()) {
+    return {
+      ok: false as const,
+      message: 'Data finală planificată nu poate fi mai mică decât data de început.',
+    };
+  }
+
+  // regulă adoptată în MVP: datele task-ului trebuie să fie în intervalul proiectului
+  if (
+    plannedEndDate.getTime() < project.startDate.getTime() ||
+    plannedEndDate.getTime() > project.endDate.getTime()
+  ) {
+    return {
+      ok: false as const,
+      message: 'Data finală planificată trebuie să fie în intervalul proiectului.',
+    };
+  }
+
+  if (plannedStartDate) {
+    if (plannedStartDate.getTime() < project.startDate.getTime()) {
+      return {
+        ok: false as const,
+        message: 'Data de început planificată nu poate fi înainte de începutul proiectului.',
+      };
+    }
+
+    if (plannedStartDate.getTime() > project.endDate.getTime()) {
+      return {
+        ok: false as const,
+        message: 'Data de început planificată nu poate fi după finalul proiectului.',
+      };
+    }
+  }
+
+  let assignedUserId: number | null = null;
+
+  if (assignedUserIdRaw) {
+    assignedUserId = Number(assignedUserIdRaw);
+
+    if (!Number.isInteger(assignedUserId)) {
+      return {
+        ok: false as const,
+        message: 'Responsabilul selectat este invalid.',
+      };
+    }
+
+    const assignedMembership = await prisma.projectMember.findUnique({
+      where: {
+        projectId_userId: {
+          projectId,
+          userId: assignedUserId,
+        },
+      },
+      select: { userId: true },
+    });
+
+    if (!assignedMembership) {
+      return {
+        ok: false as const,
+        message: 'Responsabilul trebuie să fie membru al proiectului.',
+      };
+    }
+  }
+
+  await prisma.workItem.create({
+    data: {
+      projectId,
+      title,
+      description: descriptionRaw || null,
+      plannedStartDate,
+      plannedEndDate,
+      assignedUserId,
+      progressPercent: 0,
+      status: WorkItemStatus.TODO,
+    },
+  });
+
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/projects/${projectId}/tasks`);
+
   return { ok: true as const };
 }
