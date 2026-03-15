@@ -1,0 +1,143 @@
+# Modulul WBS și urmărirea progresului activităților
+
+## 1. Rolul modulului în arhitectura aplicației
+
+Modulul **WBS & Progress Tracking** are rolul de a modela și urmări execuția activităților unui proiect. În cadrul aplicației dezvoltate pentru managementul proiectelor tehnice, acest modul reprezintă legătura dintre planificarea activităților și mecanismul de analiză a performanței proiectului bazat pe indicatori Earned Value Management (EVM).
+
+În mod concret, modulul permite:
+
+- definirea activităților unui proiect (Work Items)
+- asignarea responsabililor
+- actualizarea progresului activităților
+- calculul progresului global al proiectului
+
+Progresul agregat al proiectului este ulterior utilizat de **KPI Engine** pentru calculul indicatorilor EVM, în special **Earned Value (EV)**, care stă la baza calculului indicatorilor **CPI** și **SPI**.
+
+Astfel, modulul WBS constituie **sursa primară de date pentru execuția proiectului**.
+
+---
+
+# 2. Modelul conceptual
+
+În MVP, structura activităților este reprezentată prin entitatea **WorkItem**, asociată unui proiect.
+
+Principalele câmpuri ale modelului sunt:
+
+| Câmp | Descriere |
+|-----|-----------|
+| id | identificator unic al activității |
+| projectId | referință către proiect |
+| title | denumirea activității |
+| description | descriere opțională |
+| plannedStartDate | data planificată de start |
+| plannedEndDate | data planificată de finalizare |
+| assignedUserId | utilizator responsabil |
+| progressPercent | progresul activității (0–100%) |
+| status | starea activității (TODO / IN_PROGRESS / DONE) |
+| archivedAt | utilizat pentru soft delete |
+
+Modelul permite definirea unui **Work Breakdown Structure simplificat**, în care fiecare activitate reprezintă o unitate de execuție independentă.
+
+În versiunea MVP nu sunt implementate:
+
+- ierarhii de activități
+- dependențe între task-uri
+- estimări de durată complexe
+
+Aceste elemente pot fi adăugate ulterior fără modificarea modelului fundamental.
+
+---
+
+# 3. Use Cases principale
+
+Modulul implementează două fluxuri principale de utilizare.
+
+## 3.1 Crearea unei activități
+
+Un **Project Manager** sau un **Administrator** poate crea o activitate nouă în cadrul proiectului.
+
+Fluxul este următorul:
+
+1. utilizatorul accesează pagina proiectului
+2. introduce datele activității
+3. aplicația validează datele introduse
+4. activitatea este salvată în baza de date
+
+Reguli aplicate:
+
+- titlul activității este obligatoriu
+- progresul inițial este **0%**
+- statusul inițial este **TODO**
+
+Activitatea creată devine imediat vizibilă în lista activităților proiectului.
+
+---
+
+## 3.2 Actualizarea progresului unei activități
+
+Executanții proiectului pot actualiza progresul activităților pe măsură ce acestea avansează.
+
+Fluxul este:
+
+1. utilizatorul selectează activitatea
+2. introduce noul procent de progres
+3. sistemul validează intervalul 0–100
+4. statusul activității este actualizat automat
+
+Reguli de business:
+
+- dacă progresul = **0%** → status **TODO**
+- dacă progresul este între **1% și 99%** → **IN_PROGRESS**
+- dacă progresul = **100%** → **DONE**
+
+Acest mecanism permite reflectarea în timp real a execuției proiectului.
+
+---
+
+# 4. Politica de acces (RBAC)
+
+Accesul la operațiile asupra activităților este controlat prin mecanismul **Role-Based Access Control (RBAC)** implementat la nivelul aplicației.
+
+Rolurile relevante sunt:
+
+| Rol | Permisiuni |
+|----|------------|
+| Admin | acces complet la toate proiectele și activitățile |
+| Project Manager | poate crea, edita și arhiva activități |
+| Member | poate actualiza progresul activităților atribuite |
+| Viewer | acces doar la vizualizare |
+
+Regulile principale sunt:
+
+- **crearea activităților** este permisă doar pentru Admin și Project Manager
+- **editarea planului activității** este permisă doar pentru Admin și Project Manager
+- **actualizarea progresului** este permisă pentru:
+  - Project Manager
+  - Member dacă activitatea este atribuită utilizatorului
+- **archivarea activităților** este permisă doar pentru Admin și Project Manager
+
+Acest model RBAC simplificat este adecvat pentru MVP și poate fi extins în versiuni viitoare.
+
+---
+
+# 5. Calculul progresului proiectului
+
+Progresul global al proiectului este calculat pornind de la progresul activităților.
+
+Algoritmul utilizat este media aritmetică a progreselor activităților:
+
+\[
+ProjectProgress = \frac{\sum progress_i}{n}
+\]
+
+unde:
+
+- **n** reprezintă numărul activităților
+- **progress_i** reprezintă progresul activității *i*
+
+Dacă proiectul nu are activități definite, progresul este considerat **0%**.
+
+Această logică este implementată într-un helper server-side:
+
+```ts
+computeProjectProgress(projectId)
