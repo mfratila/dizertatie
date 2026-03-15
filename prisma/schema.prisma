@@ -100,6 +100,7 @@ model WorkItem {
   assignedUserId   Int?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
+  archivedAt       DateTime?
 
   project       Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
   assignedUser  User?      @relation("AssignedWorkItems", fields: [assignedUserId], references: [id], onDelete: SetNull)
@@ -107,6 +108,7 @@ model WorkItem {
 
   @@index([projectId, plannedEndDate])
   @@index([assignedUserId])
+  @@index([archivedAt])
 }
 
 model Timesheet {
