@@ -487,3 +487,86 @@ export async function updateWorkItemProgressAction(workItemId: number, formData:
 
   return { ok: true as const };
 }
+
+export async function archiveWorkItemAction(workItemId: number) {
+  const session = await requireAuth();
+
+  const actorUserId = Number(session.user.id);
+  if (!Number.isInteger(actorUserId)) {
+    return {
+      ok: false as const,
+      message: 'ID-ul utilizatorului din sesiune este invalid.',
+    };
+  }
+
+  const current = await prisma.workItem.findUnique({
+    where: { id: workItemId },
+    select: {
+      id: true,
+      archivedAt: true,
+      projectId: true,
+      project: {
+        select: {
+          archivedAt: true,
+        },
+      },
+    },
+  });
+
+  if (!current) {
+    return {
+      ok: false as const,
+      message: 'Activitatea nu a fost găsită.',
+    };
+  }
+
+  if (current.archivedAt) {
+    return {
+      ok: false as const,
+      message: 'Activitatea este deja arhivată.',
+    };
+  }
+
+  if (current.project.archivedAt) {
+    return {
+      ok: false as const,
+      message: 'Nu poți arhiva activități dintr-un proiect deja arhivat.',
+    };
+  }
+
+  const isAdmin = session.user.role === Role.ADMIN;
+  let isProjectPm = false;
+
+  if (!isAdmin) {
+    const membership = await prisma.projectMember.findUnique({
+      where: {
+        projectId_userId: {
+          projectId: current.projectId,
+          userId: actorUserId,
+        },
+      },
+      select: { roleInProject: true },
+    });
+
+    isProjectPm = membership?.roleInProject === Role.PM;
+  }
+
+  if (!isAdmin && !isProjectPm) {
+    return {
+      ok: false as const,
+      message: 'Nu ai permisiunea de a arhiva această activitate.',
+    };
+  }
+
+  await prisma.workItem.update({
+    where: { id: workItemId },
+    data: {
+      archivedAt: new Date(),
+    },
+  });
+
+  revalidatePath(`/projects/${current.projectId}`);
+  revalidatePath(`/projects/${current.projectId}/tasks`);
+
+  return { ok: true as const };
+}
