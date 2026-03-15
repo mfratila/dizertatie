@@ -44,7 +44,7 @@ export async function GET(_req: Request, context: RouteContext) {
   }
 
   const workItems = await prisma.workItem.findMany({
-    where: { projectId },
+    where: { projectId, archivedAt: null },
     orderBy: [{ plannedEndDate: 'asc' }, { createdAt: 'asc' }],
     include: {
       assignedUser: {

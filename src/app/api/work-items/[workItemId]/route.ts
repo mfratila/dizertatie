@@ -58,7 +58,10 @@ export async function PATCH(req: Request, context: RouteContext) {
 
   if (current.project.archivedAt) {
     return NextResponse.json(
-      { error: 'Conflict', message: 'Activitățile dintr-un proiect arhivat nu mai pot fi modificate.' },
+      {
+        error: 'Conflict',
+        message: 'Activitățile dintr-un proiect arhivat nu mai pot fi modificate.',
+      },
       { status: 409 },
     );
   }
@@ -85,7 +88,8 @@ export async function PATCH(req: Request, context: RouteContext) {
     return NextResponse.json(
       {
         error: 'Forbidden',
-        message: 'Doar PM-ul proiectului sau un administrator poate modifica detaliile activității.',
+        message:
+          'Doar PM-ul proiectului sau un administrator poate modifica detaliile activității.',
       },
       { status: 403 },
     );
@@ -115,9 +119,7 @@ export async function PATCH(req: Request, context: RouteContext) {
       : null;
 
   const assignedUserId =
-    body.assignedUserId === null ||
-    body.assignedUserId === undefined ||
-    body.assignedUserId === ''
+    body.assignedUserId === null || body.assignedUserId === undefined || body.assignedUserId === ''
       ? null
       : Number(body.assignedUserId);
 
@@ -130,13 +132,18 @@ export async function PATCH(req: Request, context: RouteContext) {
 
   if (!plannedEndDate || !isValidDate(plannedEndDate)) {
     return NextResponse.json(
-      { error: 'Bad Request', message: 'Data finală planificată este obligatorie și trebuie să fie validă.' },
+      {
+        error: 'Bad Request',
+        message: 'Data finală planificată este obligatorie și trebuie să fie validă.',
+      },
       { status: 400 },
     );
   }
 
-  if (plannedEndDate.getTime() < current.project.startDate.getTime() ||
-      plannedEndDate.getTime() > current.project.endDate.getTime()) {
+  if (
+    plannedEndDate.getTime() < current.project.startDate.getTime() ||
+    plannedEndDate.getTime() > current.project.endDate.getTime()
+  ) {
     return NextResponse.json(
       {
         error: 'Bad Request',
@@ -148,10 +155,7 @@ export async function PATCH(req: Request, context: RouteContext) {
 
   const allowedStatuses = Object.values(WorkItemStatus);
   if (!allowedStatuses.includes(status as WorkItemStatus)) {
-    return NextResponse.json(
-      { error: 'Bad Request', message: 'Status invalid.' },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: 'Bad Request', message: 'Status invalid.' }, { status: 400 });
   }
 
   // Coerență status <-> progress

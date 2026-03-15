@@ -38,21 +38,21 @@ export function computeProjectProgressFromValues(progressValues: number[]): {
   };
 }
 
-export async function computeProjectProgressHelper(projectId: number): Promise<ProjectProgressResult> {
+export async function computeProjectProgressHelper(
+  projectId: number,
+): Promise<ProjectProgressResult> {
   if (!Number.isInteger(projectId)) {
     throw new Error('Invalid projectId');
   }
 
   const workItems = await prisma.workItem.findMany({
-    where: { projectId },
+    where: { projectId, archivedAt: null },
     select: {
       progressPercent: true,
     },
   });
 
-  const computed = computeProjectProgressFromValues(
-    workItems.map((item) => item.progressPercent),
-  );
+  const computed = computeProjectProgressFromValues(workItems.map((item) => item.progressPercent));
 
   return {
     projectId,

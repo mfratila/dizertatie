@@ -78,10 +78,7 @@ export async function POST(req: Request, context: RouteContext) {
       isProjectPm = true;
     }
 
-    if (
-      membership?.roleInProject === Role.MEMBER &&
-      current.assignedUserId === actorUserId
-    ) {
+    if (membership?.roleInProject === Role.MEMBER && current.assignedUserId === actorUserId) {
       isAssignedMember = true;
     }
   }
@@ -90,8 +87,7 @@ export async function POST(req: Request, context: RouteContext) {
     return NextResponse.json(
       {
         error: 'Forbidden',
-        message:
-          'Nu ai permisiunea de a actualiza progresul acestei activități.',
+        message: 'Nu ai permisiunea de a actualiza progresul acestei activități.',
       },
       { status: 403 },
     );

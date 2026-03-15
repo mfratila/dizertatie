@@ -442,10 +442,7 @@ export async function updateWorkItemProgressAction(workItemId: number, formData:
       isProjectPm = true;
     }
 
-    if (
-      membership?.roleInProject === Role.MEMBER &&
-      current.assignedUserId === actorUserId
-    ) {
+    if (membership?.roleInProject === Role.MEMBER && current.assignedUserId === actorUserId) {
       isAssignedMember = true;
     }
   }
