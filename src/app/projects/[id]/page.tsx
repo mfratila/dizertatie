@@ -273,7 +273,7 @@ export default async function ProjectDetailsPage({ params }: { params: Promise<{
         <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>Module</h2>
         <ul style={{ display: 'grid', gap: 6, paddingLeft: 18 }}>
           <li>
-            <Link href={`/projects/${project.id}/tasks`}>Activități</Link>
+            <Link href={`/projects/${project.id}/timesheets`}>Activități</Link>
           </li>
           <li>
             <Link href={`/projects/${project.id}/execution`}>Execuție</Link>
