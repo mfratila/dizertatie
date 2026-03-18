@@ -1,0 +1,408 @@
+# EPIC 6 – Execution Data Capture (Timesheets + Costs + Risks) (MVP)
+
+## Story 1: Define execution data rules & RBAC (Specification)
+
+---
+
+## 1. Obiectiv
+
+Definirea clară și neambiguă a:
+
+- regulilor de introducere și gestionare pentru **Timesheet**, **CostEntry** și **Risk**
+- regulilor **RBAC** aplicabile acestor entități
+- regulilor de acces la nivel de proiect
+- validărilor și constrângerilor de integritate
+- delimitării explicite dintre:
+  - date folosite direct în KPI
+  - date operaționale de suport
+
+Scopul acestui document este asigurarea:
+
+- consistenței arhitecturale,
+- implementării deterministe,
+- auditabilității regulilor de acces,
+- alinierii cu MVP-ul existent.
+
+---
+
+## 2. Context arhitectural
+
+Modelul de securitate al aplicației este deja bazat pe:
+
+- roluri globale: `ADMIN | PM | MEMBER | VIEWER`
+- membership la nivel de proiect prin `ProjectMember`
+- control de acces determinat de:
+  - rolul global,
+  - apartenența la proiect,
+  - rolul în proiect
+
+În modelul RBAC existent pentru MVP:
+
+- `MEMBER` poate introduce date de execuție,
+- `VIEWER` are acces read-only,
+- `PM` și `ADMIN` controlează datele manageriale și zonele cu impact asupra KPI.  
+
+Pentru execuție, această logică se păstrează și se specializează pentru cele trei entități noi: `Timesheet`, `CostEntry` și `Risk`.
+
+---
+
+## 3. Principii de control acces (MVP)
+
+1. **Least privilege**  
+   Fiecare rol primește doar drepturile strict necesare.
+
+2. **Project-level isolation**  
+   Datele de execuție sunt accesibile doar utilizatorilor care au acces la proiectul respectiv.
+
+3. **Server-side enforcement only**  
+   Toate deciziile RBAC și toate validările de integritate sunt aplicate server-side.
+
+4. **Determinism**  
+   Accesul este decis exclusiv pe baza:
+   - rolului global,
+   - membership-ului la proiect,
+   - relației dintre entitate și proiect.
+
+5. **Separarea responsabilităților**  
+   - `Timesheet` = trasabilitate a muncii efectuate
+   - `CostEntry` = sursa financiară pentru AC
+   - `Risk` = registru managerial de risc, fără impact KPI complex în MVP
+
+---
+
+## 4. Rolul entităților în MVP
+
+### 4.1 Timesheet
+
+Reprezintă o înregistrare de timp lucrat de un utilizator pe un `WorkItem`, într-o anumită zi.
+
+**Rol în sistem:**
+- susține trasabilitatea execuției,
+- justifică realismul operațional al proiectului,
+- poate susține ulterior costuri derivate din effort,
+- în MVP **nu este sursa principală pentru AC**.
+
+### 4.2 CostEntry
+
+Reprezintă o înregistrare de cost efectiv la nivel de proiect.
+
+**Rol în sistem:**
+- este sursa directă pentru **Actual Cost (AC)**,
+- intră în calculul KPI engine pentru:
+  - `CPI`
+  - `Burn Rate`
+
+### 4.3 Risk
+
+Reprezintă o înregistrare din registrul de riscuri al proiectului.
+
+**Rol în sistem:**
+- sprijină managementul proiectului,
+- oferă context pentru interpretarea stării proiectului,
+- în MVP **nu este folosit în formule KPI**.
+
+---
+
+## 5. Delimitare explicită: KPI vs supporting data
+
+### 5.1 Date folosite direct în KPI
+
+În MVP, motorul KPI folosește explicit:
+
+- `Project.plannedBudget`
+- `Project.startDate`
+- `Project.endDate`
+- `WorkItem.progressPercent`
+- `CostEntry.amount`
+
+Prin urmare:
+
+- **CostEntry** este sursă directă pentru `AC`
+- **WorkItem.progressPercent** contribuie la `EV`
+- **Timesheet** și **Risk** nu sunt utilizate direct în formulele KPI din MVP
+
+### 5.2 Supporting data
+
+Sunt considerate **supporting data**:
+
+- `Timesheet`
+- `Risk`
+
+Acestea au valoare operațională și managerială, dar nu intră direct în calculul indicatorilor CPI/SPI/Burn Rate în versiunea MVP.
+
+---
+
+## 6. Reguli generale de vizibilitate
+
+## 6.1 Listare date de execuție
+
+Un utilizator poate lista date de execuție doar dacă:
+
+- este `ADMIN`
+- sau este membru al proiectului asociat
+
+Aplicabil pentru:
+
+- timesheets
+- cost entries
+- risks
+
+## 6.2 Detaliu entitate
+
+Acces permis dacă:
+
+- utilizatorul este `ADMIN`
+- sau există membership activ pentru proiectul asociat entității
+
+Răspunsuri standard:
+
+- `401 Unauthorized` – fără sesiune
+- `403 Forbidden` – sesiune validă, dar fără acces la proiect
+- `404 Not Found` – entitatea nu există sau nu aparține proiectului indicat
+
+---
+
+## 7. RBAC – Timesheet
+
+## 7.1 Operații permise
+
+| Acțiune | ADMIN | PM | MEMBER | VIEWER |
+|--------|------|----|--------|--------|
+| Create timesheet | ✔ | ✔ | ✔ | ✖ |
+| List timesheets | ✔ | ✔ (dacă e membru) | ✔ (dacă e membru) | ✔ (read-only, dacă e membru) |
+| Read timesheet | ✔ | ✔ (dacă e membru) | ✔ (dacă e membru) | ✔ (read-only, dacă e membru) |
+| Update timesheet | ✔ | ✔ | ✔ (doar în limitele politicii) | ✖ |
+| Delete timesheet | ✔ | ✔ | ✔ (doar în limitele politicii) | ✖ |
+
+## 7.2 Reguli de creare
+
+Un `Timesheet` poate fi creat doar dacă sunt îndeplinite simultan condițiile:
+
+1. utilizatorul are rol `ADMIN`, `PM` sau `MEMBER`
+2. utilizatorul are acces la proiect
+3. `workItemId` există
+4. `workItem.projectId == projectId`
+5. data este validă
+6. `hours > 0`
+
+## 7.3 Reguli de ownership recomandate pentru MVP
+
+Pentru a evita editări arbitrare între membri, se recomandă:
+
+- `MEMBER` poate modifica sau șterge **doar propriile** timesheet-uri
+- `PM` și `ADMIN` pot modifica sau șterge orice timesheet din proiect
+
+Această regulă menține controlul managerial și reduce riscul de inconsistență operațională.
+
+## 7.4 Validări cheie
+
+- `hours` trebuie să fie strict pozitiv
+- `hours` trebuie să fie într-un interval rezonabil (recomandat MVP: `0 < hours <= 24`)
+- `date` trebuie să fie o dată validă
+- `workItemId` trebuie să existe
+- `workItem` trebuie să aparțină proiectului din URL / context
+- utilizatorul asociat timesheet-ului trebuie să aibă acces la proiect
+
+## 7.5 Observație KPI
+
+În MVP, `Timesheet`:
+
+- **nu alimentează direct AC**
+- nu intră direct în formula `CPI` sau `SPI`
+- este păstrat pentru trasabilitate, realism și extensibilitate ulterioară
+
+---
+
+## 8. RBAC – CostEntry
+
+## 8.1 Decizie de design pentru MVP
+
+Deși modelul RBAC general existent permite conceptual introducerea datelor de execuție și de către `MEMBER`, pentru **CostEntry** se adoptă în MVP o variantă mai controlată:
+
+- `ADMIN` și `PM` pot crea / modifica / șterge costuri
+- `MEMBER` poate doar vizualiza
+- `VIEWER` poate doar vizualiza în regim read-only
+
+Această alegere este recomandată deoarece `CostEntry` alimentează direct `AC`, deci influențează KPI-urile.
+
+## 8.2 Operații permise
+
+| Acțiune | ADMIN | PM | MEMBER | VIEWER |
+|--------|------|----|--------|--------|
+| Create cost entry | ✔ | ✔ | ✖ |
+| List cost entries | ✔ | ✔ (dacă e membru) | ✔ (dacă e membru) | ✔ (read-only, dacă e membru) |
+| Read cost entry | ✔ | ✔ (dacă e membru) | ✔ (dacă e membru) | ✔ (read-only, dacă e membru) |
+| Update cost entry | ✔ | ✔ | ✖ | ✖ |
+| Delete cost entry | ✔ | ✔ | ✖ | ✖ |
+
+## 8.3 Reguli de creare
+
+Un `CostEntry` poate fi creat doar dacă:
+
+1. utilizatorul este `ADMIN` sau `PM`
+2. utilizatorul are acces la proiect
+3. proiectul există
+4. `amount > 0`
+5. `date` este validă
+
+## 8.4 Validări cheie
+
+- `amount` trebuie să fie strict pozitiv
+- `date` trebuie să fie validă
+- `projectId` trebuie să existe
+- costul trebuie asociat explicit unui singur proiect
+- orice operație se validează în contextul proiectului din URL
+
+## 8.5 Observație KPI
+
+`CostEntry.amount` este sursa directă pentru:
+
+- `AC = SUM(CostEntry.amount)`
+- `CPI = EV / AC`
+- `Burn Rate = AC / elapsedDays`
+
+Prin urmare, `CostEntry` este entitate cu impact direct în KPI și necesită control managerial mai strict decât `Timesheet`.
+
+---
+
+## 9. RBAC – Risk Register
+
+## 9.1 Decizie de design pentru MVP
+
+Pentru MVP se adoptă varianta cea mai simplă și ușor de justificat:
+
+- `PM` și `ADMIN` au CRUD complet
+- `MEMBER` și `VIEWER` au acces doar la vizualizare
+- nu se implementează în MVP flux separat de „risk proposal”
+
+Această alegere păstrează registrul de riscuri ca instrument managerial și evită complexitate inutilă.
+
+## 9.2 Operații permise
+
+| Acțiune | ADMIN | PM | MEMBER | VIEWER |
+|--------|------|----|--------|--------|
+| Create risk | ✔ | ✔ | ✖ | ✖ |
+| List risks | ✔ | ✔ (dacă e membru) | ✔ (dacă e membru) | ✔ (read-only, dacă e membru) |
+| Read risk | ✔ | ✔ (dacă e membru) | ✔ (dacă e membru) | ✔ (read-only, dacă e membru) |
+| Update risk | ✔ | ✔ | ✖ | ✖ |
+| Delete risk | ✔ | ✔ | ✖ | ✖ |
+
+## 9.3 Validări cheie
+
+Pentru MVP, fiecare risk trebuie să aibă minim:
+
+- proiect asociat valid
+- titlu / descriere nenule
+- status valid dintr-un enum controlat
+- date coerente dacă există câmpuri de tip target / due / identifiedAt
+
+## 9.4 Observație KPI
+
+`Risk`:
+
+- nu intră în formulele KPI
+- nu afectează automat CPI/SPI/Burn Rate
+- este folosit pentru interpretare managerială și contextualizare
+
+---
+
+## 10. Reguli de integritate cross-entity
+
+## 10.1 Apartenența la proiect
+
+Toate entitățile de execuție trebuie să poată fi validate univoc față de un proiect:
+
+- `Timesheet -> WorkItem -> Project`
+- `CostEntry -> Project`
+- `Risk -> Project`
+
+## 10.2 Regula pentru Timesheet
+
+Este obligatoriu ca:
+
+- `workItem.projectId == projectId` din contextul request-ului
+
+Dacă nu, request-ul este respins cu `400 Bad Request` sau `409 Conflict`, în funcție de convenția aleasă.
+
+## 10.3 Regula pentru membership
+
+Accesul este permis doar dacă:
+
+- utilizatorul este `ADMIN`
+- sau există `ProjectMember(userId, projectId)`
+
+## 10.4 Regula de enforcement
+
+Verificările de integritate și acces se aplică:
+
+- în service layer
+- înaintea oricărei operații de create / update / delete
+
+---
+
+## 11. Politici recomandate pentru endpoint-uri API
+
+### Timesheets
+- `POST /api/projects/:id/timesheets`
+- `GET /api/projects/:id/timesheets`
+- `PATCH /api/projects/:id/timesheets/:timesheetId`
+- `DELETE /api/projects/:id/timesheets/:timesheetId`
+
+### Cost entries
+- `POST /api/projects/:id/cost-entries`
+- `GET /api/projects/:id/cost-entries`
+- `PATCH /api/projects/:id/cost-entries/:costEntryId`
+- `DELETE /api/projects/:id/cost-entries/:costEntryId`
+
+### Risks
+- `POST /api/projects/:id/risks`
+- `GET /api/projects/:id/risks`
+- `PATCH /api/projects/:id/risks/:riskId`
+- `DELETE /api/projects/:id/risks/:riskId`
+
+Toate aceste endpoint-uri trebuie să aplice:
+
+- autentificare obligatorie,
+- validare project-level access,
+- validare de ownership unde este cazul,
+- validare de integritate între entități.
+
+---
+
+## 12. Matrice sumar RBAC (MVP)
+
+| Acțiune | ADMIN | PM | MEMBER | VIEWER |
+|--------|------|----|--------|--------|
+| Create timesheet | ✔ | ✔ | ✔ | ✖ |
+| Update/delete own timesheet | ✔ | ✔ | ✔ | ✖ |
+| Create cost entry | ✔ | ✔ | ✖ | ✖ |
+| Update/delete cost entry | ✔ | ✔ | ✖ | ✖ |
+| Create risk | ✔ | ✔ | ✖ | ✖ |
+| Update/delete risk | ✔ | ✔ | ✖ | ✖ |
+| Read/list execution data in accessible projects | ✔ | ✔ | ✔ | ✔ (read-only) |
+
+---
+
+## 13. Decizii explicite pentru MVP
+
+1. **Actual Cost (AC)** se calculează din `CostEntry`, nu din `Timesheet`.
+2. **Timesheet** este date de suport operațional, nu sursă KPI directă.
+3. **Risk** este registru managerial, nu intrare în motorul KPI.
+4. **CostEntry** este controlat mai strict decât `Timesheet`, deoarece afectează KPI-urile.
+5. **Viewer** rămâne read-only pe toate entitățile de execuție.
+6. **Toate regulile sunt aplicate server-side**.
+7. **Accesul este întotdeauna limitat la proiectele accesibile utilizatorului**.
+
+---
+
+## 14. Concluzie
+
+Specificația pentru Execution Data Capture (MVP):
+
+- păstrează coerența cu modelul RBAC deja definit,
+- respectă regulile de acces bazate pe membership la proiect,
+- separă clar datele cu impact KPI de datele operaționale de suport,
+- reduce ambiguitățile de implementare,
+- este ușor de transpus în API, UI și documentația de dizertație.
+
+Status: **READY FOR IMPLEMENTATION**
