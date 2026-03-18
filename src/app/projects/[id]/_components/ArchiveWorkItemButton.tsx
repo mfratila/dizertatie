@@ -14,9 +14,7 @@ export default function ArchiveWorkItemButton({
   const [loading, setLoading] = useState(false);
 
   async function handleArchive() {
-    const confirmed = window.confirm(
-      `Sigur vrei să arhivezi activitatea „${title}”?`,
-    );
+    const confirmed = window.confirm(`Sigur vrei să arhivezi activitatea „${title}”?`);
 
     if (!confirmed) {
       return;

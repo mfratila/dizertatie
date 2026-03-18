@@ -14,11 +14,7 @@ import ArchiveWorkItemButton from './_components/ArchiveWorkItemButton';
 import MembersSection from './members/MembersSection';
 import ArchiveProjectButton from './_components/ArchiveProjectButton';
 
-export default async function ProjectDetailsPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function ProjectDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireAuth();
 
   const userId = Number(session.user.id);
@@ -134,9 +130,7 @@ export default async function ProjectDetailsPage({
       </div>
 
       <section style={{ marginBottom: 20 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>
-          Prezentare generală
-        </h2>
+        <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>Prezentare generală</h2>
         <div style={{ display: 'grid', gap: 6 }}>
           <div>
             <strong>Stare:</strong> {String(project.status)}
@@ -209,11 +203,10 @@ export default async function ProjectDetailsPage({
                 {workItems.map((item) => {
                   const canUpdateProgress =
                     !project.archivedAt &&
-                    (
-                      role === Role.ADMIN ||
+                    (role === Role.ADMIN ||
                       isPmInProject ||
-                      (actorMembership?.roleInProject === 'MEMBER' && item.assignedUserId === userId)
-                    );
+                      (actorMembership?.roleInProject === 'MEMBER' &&
+                        item.assignedUserId === userId));
 
                   return (
                     <tr key={item.id}>
