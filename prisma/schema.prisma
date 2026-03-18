@@ -117,6 +117,7 @@ model Timesheet {
   workItemId Int
   date       DateTime
   hours      Decimal  @db.Decimal(6, 2)
+  note       String?
   createdAt  DateTime @default(now())
 
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
