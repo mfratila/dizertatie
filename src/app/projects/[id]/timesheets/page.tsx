@@ -1,17 +1,28 @@
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/page-guards';
-import { Role } from '@prisma/client';
+import { Prisma, Role } from '@prisma/client';
 import { notFound } from 'next/navigation';
 import CreateTimesheetInline from './_components/CreateTimesheetInline';
+import TimesheetFilters from './_components/TimesheetFilters';
 
 function formatDate(date: Date) {
   return new Intl.DateTimeFormat('ro-RO').format(date);
 }
 
-export default async function ProjectExecutionPage({
+function isValidDate(value: Date) {
+  return !Number.isNaN(value.getTime());
+}
+
+export default async function ProjectTimesheetsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{
+    from?: string;
+    to?: string;
+    userId?: string;
+  }>;
 }) {
   const session = await requireAuth();
 
@@ -57,6 +68,38 @@ export default async function ProjectExecutionPage({
 
   const canCreate = role === Role.ADMIN || role === Role.PM || role === Role.MEMBER;
 
+  const resolvedSearchParams = await searchParams;
+
+  const fromRaw = resolvedSearchParams.from?.trim() ?? '';
+  const toRaw = resolvedSearchParams.to?.trim() ?? '';
+  const userIdRaw = resolvedSearchParams.userId?.trim() ?? '';
+
+  let from: Date | null = null;
+  let to: Date | null = null;
+  let filterUserId: number | null = null;
+
+  if (fromRaw) {
+    const parsedFrom = new Date(fromRaw);
+    if (isValidDate(parsedFrom)) {
+      from = parsedFrom;
+    }
+  }
+
+  if (toRaw) {
+    const parsedTo = new Date(toRaw);
+    if (isValidDate(parsedTo)) {
+      parsedTo.setHours(23, 59, 59, 999);
+      to = parsedTo;
+    }
+  }
+
+  if (userIdRaw) {
+    const parsedUserId = Number(userIdRaw);
+    if (Number.isInteger(parsedUserId) && parsedUserId > 0) {
+      filterUserId = parsedUserId;
+    }
+  }
+
   const workItems = await prisma.workItem.findMany({
     where: {
       projectId,
@@ -69,18 +112,50 @@ export default async function ProjectExecutionPage({
     },
   });
 
-  const timesheets = await prisma.timesheet.findMany({
+  const members = await prisma.projectMember.findMany({
     where: {
-      workItem: {
-        projectId,
+      projectId,
+    },
+    orderBy: {
+      user: {
+        name: 'asc',
       },
     },
+    select: {
+      userId: true,
+      user: {
+        select: {
+          name: true,
+          email: true,
+        },
+      },
+    },
+  });
+
+  const where: Prisma.TimesheetWhereInput = {
+    workItem: {
+      projectId,
+    },
+    ...(from || to
+      ? {
+          date: {
+            ...(from ? { gte: from } : {}),
+            ...(to ? { lte: to } : {}),
+          },
+        }
+      : {}),
+    ...(filterUserId ? { userId: filterUserId } : {}),
+  };
+
+  const timesheets = await prisma.timesheet.findMany({
+    where,
     orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
     select: {
       id: true,
       date: true,
       hours: true,
       note: true,
+      createdAt: true,
       user: {
         select: {
           id: true,
@@ -97,14 +172,26 @@ export default async function ProjectExecutionPage({
     },
   });
 
+  const totalHours = timesheets.reduce((sum, t) => sum + Number(t.hours), 0);
+
   return (
     <div style={{ padding: 24 }}>
-      <h1>Execution</h1>
+      <h1>Timesheets</h1>
       <p style={{ color: '#666' }}>Project: {project.name}</p>
 
-      <h2>Timesheets</h2>
-
       {canCreate && <CreateTimesheetInline projectId={projectId} workItems={workItems} />}
+
+      <TimesheetFilters
+        members={members.map((member) => ({
+          userId: member.userId,
+          name: member.user.name ?? 'Fără nume',
+          email: member.user.email ?? '-',
+        }))}
+      />
+
+      <p style={{ color: '#666', marginTop: 8 }}>
+        {timesheets.length} înregistrări · Total ore: {totalHours}
+      </p>
 
       <table
         className="card"
@@ -133,6 +220,7 @@ export default async function ProjectExecutionPage({
             </th>
           </tr>
         </thead>
+
         <tbody>
           {timesheets.map((t) => (
             <tr key={t.id}>
@@ -149,7 +237,7 @@ export default async function ProjectExecutionPage({
           {timesheets.length === 0 && (
             <tr>
               <td colSpan={5} style={{ padding: 12, color: '#666' }}>
-                Nu există timesheet-uri pentru acest proiect.
+                Nu există timesheet-uri pentru filtrele selectate.
               </td>
             </tr>
           )}
