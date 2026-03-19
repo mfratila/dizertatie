@@ -4,6 +4,7 @@ import { Prisma, Role } from '@prisma/client';
 import { notFound } from 'next/navigation';
 import CreateTimesheetInline from './_components/CreateTimesheetInline';
 import TimesheetFilters from './_components/TimesheetFilters';
+import TimesheetRowActions from './_components/TimesheetRowActions';
 
 function formatDate(date: Date) {
   return new Intl.DateTimeFormat('ro-RO').format(date);
@@ -26,7 +27,7 @@ export default async function ProjectTimesheetsPage({
 }) {
   const session = await requireAuth();
 
-  const userId = Number(session.user.id);
+  const currentUserId = Number(session.user.id);
   const role = session.user.role;
 
   const { id: projectIdParam } = await params;
@@ -35,6 +36,21 @@ export default async function ProjectTimesheetsPage({
   if (!Number.isInteger(projectId) || projectId <= 0) {
     notFound();
   }
+
+  const projectMembership =
+    role === Role.ADMIN
+      ? null
+      : await prisma.projectMember.findUnique({
+          where: {
+            projectId_userId: {
+              projectId,
+              userId: currentUserId,
+            },
+          },
+          select: {
+            roleInProject: true,
+          },
+        });
 
   const project =
     role === Role.ADMIN
@@ -53,7 +69,7 @@ export default async function ProjectTimesheetsPage({
             id: projectId,
             archivedAt: null,
             members: {
-              some: { userId },
+              some: { userId: currentUserId },
             },
           },
           select: {
@@ -66,7 +82,10 @@ export default async function ProjectTimesheetsPage({
     notFound();
   }
 
-  const canCreate = role === Role.ADMIN || role === Role.PM || role === Role.MEMBER;
+  const canCreate =
+    role === Role.ADMIN ||
+    projectMembership?.roleInProject === Role.PM ||
+    projectMembership?.roleInProject === Role.MEMBER;
 
   const resolvedSearchParams = await searchParams;
 
@@ -174,6 +193,9 @@ export default async function ProjectTimesheetsPage({
 
   const totalHours = timesheets.reduce((sum, t) => sum + Number(t.hours), 0);
 
+  const isAdmin = role === Role.ADMIN;
+  const isProjectPm = projectMembership?.roleInProject === Role.PM;
+
   return (
     <div style={{ padding: 24 }}>
       <h1>Timesheets</h1>
@@ -218,25 +240,43 @@ export default async function ProjectTimesheetsPage({
             <th style={{ textAlign: 'left', borderBottom: '1px solid #ddd', padding: 8 }}>
               Notă
             </th>
+            <th style={{ textAlign: 'left', borderBottom: '1px solid #ddd', padding: 8 }}>
+              Acțiuni
+            </th>
           </tr>
         </thead>
 
         <tbody>
-          {timesheets.map((t) => (
-            <tr key={t.id}>
-              <td style={{ padding: 8 }}>
-                {t.user.name} ({t.user.email})
-              </td>
-              <td style={{ padding: 8 }}>{t.workItem.title}</td>
-              <td style={{ padding: 8 }}>{formatDate(t.date)}</td>
-              <td style={{ padding: 8, textAlign: 'right' }}>{String(t.hours)}</td>
-              <td style={{ padding: 8 }}>{t.note ?? '-'}</td>
-            </tr>
-          ))}
+          {timesheets.map((t) => {
+            const canManage = isAdmin || isProjectPm || t.user.id === currentUserId;
+
+            return (
+              <tr key={t.id}>
+                <td style={{ padding: 8 }}>
+                  {t.user.name} ({t.user.email})
+                </td>
+                <td style={{ padding: 8 }}>{t.workItem.title}</td>
+                <td style={{ padding: 8 }}>{formatDate(t.date)}</td>
+                <td style={{ padding: 8, textAlign: 'right' }}>{String(t.hours)}</td>
+                <td style={{ padding: 8 }}>{t.note ?? '-'}</td>
+                <td style={{ padding: 8, verticalAlign: 'top' }}>
+                  <TimesheetRowActions
+                    timesheet={{
+                      id: t.id,
+                      date: t.date,
+                      hours: String(t.hours),
+                      note: t.note,
+                    }}
+                    canManage={canManage}
+                  />
+                </td>
+              </tr>
+            );
+          })}
 
           {timesheets.length === 0 && (
             <tr>
-              <td colSpan={5} style={{ padding: 12, color: '#666' }}>
+              <td colSpan={6} style={{ padding: 12, color: '#666' }}>
                 Nu există timesheet-uri pentru filtrele selectate.
               </td>
             </tr>
