@@ -1,8 +1,9 @@
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/page-guards';
-import { Role } from '@prisma/client';
+import { Prisma, Role } from '@prisma/client';
 import { notFound } from 'next/navigation';
 import CreateCostEntryInline from './_components/CreateCostEntryInline';
+import CostFilters from './_components/CostFilters';
 
 function formatDate(date: Date) {
   return new Intl.DateTimeFormat('ro-RO').format(date);
@@ -16,10 +17,19 @@ function formatMoney(value: number | string) {
   }).format(Number(value));
 }
 
+function isValidDate(value: Date) {
+  return !Number.isNaN(value.getTime());
+}
+
 export default async function ProjectCostsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{
+    from?: string;
+    to?: string;
+  }>;
 }) {
   const session = await requireAuth();
 
@@ -80,10 +90,43 @@ export default async function ProjectCostsPage({
 
   const canCreate = role === Role.ADMIN || projectMembership?.roleInProject === Role.PM;
 
+  const resolvedSearchParams = await searchParams;
+
+  const fromRaw = resolvedSearchParams.from?.trim() ?? '';
+  const toRaw = resolvedSearchParams.to?.trim() ?? '';
+
+  let from: Date | null = null;
+  let to: Date | null = null;
+
+  if (fromRaw) {
+    const parsedFrom = new Date(fromRaw);
+    if (isValidDate(parsedFrom)) {
+      from = parsedFrom;
+    }
+  }
+
+  if (toRaw) {
+    const parsedTo = new Date(toRaw);
+    if (isValidDate(parsedTo)) {
+      parsedTo.setHours(23, 59, 59, 999);
+      to = parsedTo;
+    }
+  }
+
+  const where: Prisma.CostEntryWhereInput = {
+    projectId,
+    ...(from || to
+      ? {
+          date: {
+            ...(from ? { gte: from } : {}),
+            ...(to ? { lte: to } : {}),
+          },
+        }
+      : {}),
+  };
+
   const costs = await prisma.costEntry.findMany({
-    where: {
-      projectId,
-    },
+    where,
     orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
     select: {
       id: true,
@@ -104,8 +147,10 @@ export default async function ProjectCostsPage({
 
       {canCreate && <CreateCostEntryInline projectId={projectId} />}
 
+      <CostFilters />
+
       <p style={{ color: '#666', marginTop: 8 }}>
-        {costs.length} înregistrări · Total AC curent: {formatMoney(totalCost)}
+        {costs.length} înregistrări · Total pe interval: {formatMoney(totalCost)}
       </p>
 
       <table
@@ -146,7 +191,7 @@ export default async function ProjectCostsPage({
           {costs.length === 0 && (
             <tr>
               <td colSpan={4} style={{ padding: 12, color: '#666' }}>
-                Nu există costuri pentru acest proiect.
+                Nu există costuri pentru filtrele selectate.
               </td>
             </tr>
           )}
