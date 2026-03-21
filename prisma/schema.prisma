@@ -132,6 +132,8 @@ model CostEntry {
   projectId Int
   date      DateTime
   amount    Decimal  @db.Decimal(12, 2)
+  category  String?
+  note      String?
   createdAt DateTime @default(now())
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
