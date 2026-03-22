@@ -279,7 +279,7 @@ export default async function ProjectDetailsPage({ params }: { params: Promise<{
             <Link href={`/projects/${project.id}/costs`}>Costuri</Link>
           </li>
           <li>
-            <Link href={`/projects/${project.id}/kpi`}>Indicatori KPI</Link>
+            <Link href={`/projects/${project.id}/risks`}>Riscuri</Link>
           </li>
         </ul>
       </section>

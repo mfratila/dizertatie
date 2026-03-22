@@ -41,6 +41,11 @@ enum WorkItemStatus {
   DONE
 }
 
+enum RiskStatus {
+  OPEN
+  CLOSED
+}
+
 model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique
@@ -52,6 +57,7 @@ model User {
   memberships       ProjectMember[]
   timesheets        Timesheet[]
   assignedWorkItems WorkItem[] @relation("AssignedWorkItems")
+  riskOwnerships Risk[] @relation("RiskOwner")
 }
 
 model Project {
@@ -70,6 +76,7 @@ model Project {
   baselines      Baseline[]
   kpiDefinitions KPIDefinition[]
   kpiSnapshots   KPISnapshot[]
+  risks          Risk[]
 
   @@index([archivedAt])
 }
@@ -190,4 +197,23 @@ model KPISnapshot {
 
   @@index([projectId, computedAt])
   @@index([kpiDefinitionId, computedAt])
+}
+
+model Risk {
+  id          Int        @id @default(autoincrement())
+  projectId   Int
+  title       String
+  probability Int
+  impact      Int
+  status      RiskStatus @default(OPEN)
+  ownerUserId Int?
+  note        String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  owner   User?   @relation("RiskOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, status])
+  @@index([ownerUserId])
 }
