@@ -6,6 +6,7 @@ import {
   KpiType,
   KpiStatus,
   WorkItemStatus,
+  RiskStatus,
 } from '@prisma/client';
 import bcrypt from 'bcrypt';
 
@@ -17,6 +18,7 @@ async function main() {
   const MEMBER_EMAIL = 'member@demo.local';
   const MEMBER_2_EMAIL = 'member2@demo.local';
   const VIEWER_EMAIL = 'viewer@demo.local';
+
   const PROJECT_NAME = 'Project Alpha';
   const PROJECT_2_NAME = 'Project Beta';
 
@@ -27,7 +29,7 @@ async function main() {
   const pmPasswordHash = await bcrypt.hash('pm123', 10);
   const memberPasswordHash = await bcrypt.hash('member123', 10);
   const member2PasswordHash = await bcrypt.hash('member123', 10);
-  const viewerPasswordHash = await bcrypt.hash('viewer132', 10);
+  const viewerPasswordHash = await bcrypt.hash('viewer123', 10);
 
   // 1) Users
   const admin = await prisma.user.upsert({
@@ -141,8 +143,6 @@ async function main() {
   });
 
   // 3) Project members
-  // Admin does not strictly need membership if your authz gives ADMIN global bypass.
-  // If you still want admin visible in project members UI, set a valid project-level role.
   await prisma.projectMember.upsert({
     where: {
       projectId_userId: { projectId: project.id, userId: pm.id },
@@ -169,6 +169,18 @@ async function main() {
 
   await prisma.projectMember.upsert({
     where: {
+      projectId_userId: { projectId: project.id, userId: member2.id },
+    },
+    update: { roleInProject: Role.MEMBER },
+    create: {
+      projectId: project.id,
+      userId: member2.id,
+      roleInProject: Role.MEMBER,
+    },
+  });
+
+  await prisma.projectMember.upsert({
+    where: {
       projectId_userId: { projectId: project.id, userId: viewer.id },
     },
     update: { roleInProject: Role.VIEWER },
@@ -176,6 +188,19 @@ async function main() {
       projectId: project.id,
       userId: viewer.id,
       roleInProject: Role.VIEWER,
+    },
+  });
+
+  // optional: admin visible in project members UI
+  await prisma.projectMember.upsert({
+    where: {
+      projectId_userId: { projectId: project.id, userId: admin.id },
+    },
+    update: { roleInProject: Role.PM },
+    create: {
+      projectId: project.id,
+      userId: admin.id,
+      roleInProject: Role.PM,
     },
   });
 
@@ -188,19 +213,6 @@ async function main() {
       projectId: project2.id,
       userId: member2.id,
       roleInProject: Role.MEMBER,
-    },
-  });
-
-  // Optional: add admin to project members UI as PM or VIEWER if your schema does not allow ADMIN
-  await prisma.projectMember.upsert({
-    where: {
-      projectId_userId: { projectId: project.id, userId: admin.id },
-    },
-    update: { roleInProject: Role.PM },
-    create: {
-      projectId: project.id,
-      userId: admin.id,
-      roleInProject: Role.PM,
     },
   });
 
@@ -219,10 +231,16 @@ async function main() {
       });
     }
 
+    await tx.risk.deleteMany({ where: { projectId: project.id } });
     await tx.costEntry.deleteMany({ where: { projectId: project.id } });
     await tx.baseline.deleteMany({ where: { projectId: project.id } });
     await tx.kPISnapshot.deleteMany({ where: { projectId: project.id } });
     await tx.workItem.deleteMany({ where: { projectId: project.id } });
+  });
+
+  // Optional cleanup for Project Beta work items
+  await prisma.workItem.deleteMany({
+    where: { projectId: project2.id },
   });
 
   // 4) Baseline
@@ -235,7 +253,7 @@ async function main() {
     },
   });
 
-  // 5) WorkItems (new shape)
+  // 5) WorkItems - Project Alpha
   const workItem1 = await prisma.workItem.create({
     data: {
       projectId: project.id,
@@ -275,11 +293,7 @@ async function main() {
     },
   });
 
-  // Optional demo items for Project Beta so list API has data there too
-  await prisma.workItem.deleteMany({
-    where: { projectId: project2.id },
-  });
-
+  // 5b) WorkItems - Project Beta
   await prisma.workItem.createMany({
     data: [
       {
@@ -305,7 +319,7 @@ async function main() {
     ],
   });
 
-  // 6) Timesheets
+  // 6) Timesheets - Project Alpha
   await prisma.timesheet.createMany({
     data: [
       {
@@ -313,32 +327,119 @@ async function main() {
         workItemId: workItem1.id,
         date: new Date('2026-01-10T00:00:00.000Z'),
         hours: new Prisma.Decimal('6.00'),
+        note: 'Planning workshop and backlog clarification.',
+      },
+      {
+        userId: member.id,
+        workItemId: workItem1.id,
+        date: new Date('2026-01-10T00:00:00.000Z'),
+        hours: new Prisma.Decimal('4.00'),
+        note: 'Support for requirements review.',
+      },
+      {
+        userId: pm.id,
+        workItemId: workItem1.id,
+        date: new Date('2026-01-11T00:00:00.000Z'),
+        hours: new Prisma.Decimal('5.50'),
+        note: 'Scope refinement and milestone discussion.',
+      },
+      {
+        userId: member.id,
+        workItemId: workItem1.id,
+        date: new Date('2026-01-11T00:00:00.000Z'),
+        hours: new Prisma.Decimal('3.50'),
+        note: 'Draft updates for planning artifacts.',
       },
       {
         userId: member.id,
         workItemId: workItem2.id,
         date: new Date('2026-02-12T00:00:00.000Z'),
-        hours: new Prisma.Decimal('4.00'),
+        hours: new Prisma.Decimal('6.00'),
+        note: 'Implementation of MVP module.',
       },
       {
-        userId: pm.id,
-        workItemId: workItem1.id,
-        date: new Date('2026-01-15T00:00:00.000Z'),
-        hours: new Prisma.Decimal('3.50'),
+        userId: member2.id,
+        workItemId: workItem2.id,
+        date: new Date('2026-02-12T00:00:00.000Z'),
+        hours: new Prisma.Decimal('5.00'),
+        note: 'Support implementation and testing.',
+      },
+      {
+        userId: member.id,
+        workItemId: workItem2.id,
+        date: new Date('2026-02-13T00:00:00.000Z'),
+        hours: new Prisma.Decimal('7.00'),
+        note: 'Continue implementation and bug fixes.',
+      },
+      {
+        userId: member2.id,
+        workItemId: workItem2.id,
+        date: new Date('2026-02-13T00:00:00.000Z'),
+        hours: new Prisma.Decimal('4.50'),
+        note: 'Integration support and validation.',
       },
     ],
   });
 
-  // 7) CostEntry
-  await prisma.costEntry.create({
-    data: {
-      projectId: project.id,
-      date: new Date('2026-01-12T00:00:00.000Z'),
-      amount: new Prisma.Decimal('1500.00'),
-    },
+  // 7) Cost entries - Project Alpha (source for AC)
+  await prisma.costEntry.createMany({
+    data: [
+      {
+        projectId: project.id,
+        date: new Date('2026-01-12T00:00:00.000Z'),
+        amount: new Prisma.Decimal('1500.00'),
+        category: 'Labor',
+        note: 'Initial planning and coordination effort.',
+      },
+      {
+        projectId: project.id,
+        date: new Date('2026-02-14T00:00:00.000Z'),
+        amount: new Prisma.Decimal('3200.00'),
+        category: 'Labor',
+        note: 'Implementation phase effort.',
+      },
+      {
+        projectId: project.id,
+        date: new Date('2026-02-20T00:00:00.000Z'),
+        amount: new Prisma.Decimal('800.00'),
+        category: 'Tools',
+        note: 'Tooling and software subscriptions.',
+      },
+      {
+        projectId: project.id,
+        date: new Date('2026-03-05T00:00:00.000Z'),
+        amount: new Prisma.Decimal('1200.00'),
+        category: 'Other',
+        note: 'Validation and miscellaneous execution costs.',
+      },
+    ],
   });
 
-  // 8) KPI definitions
+  // 8) Risks - Project Alpha
+  await prisma.risk.createMany({
+    data: [
+      {
+        projectId: project.id,
+        title: 'Requirements may change during implementation',
+        probability: 4,
+        impact: 4,
+        status: RiskStatus.OPEN,
+        ownerUserId: pm.id,
+        note: 'Open risk related to evolving stakeholder expectations.',
+      },
+      {
+        projectId: project.id,
+        title: 'Delay in environment setup',
+        probability: 2,
+        impact: 3,
+        status: RiskStatus.CLOSED,
+        ownerUserId: member.id,
+        note: 'Closed after environment configuration was stabilized.',
+      },
+    ],
+  });
+
+  // 9) KPI definitions
   const cpiDef = await prisma.kPIDefinition.upsert({
     where: { projectId_type: { projectId: project.id, type: KpiType.CPI } },
     update: {
@@ -381,7 +482,7 @@ async function main() {
     },
   });
 
-  // 9) KPI snapshot
+  // 10) KPI snapshot demo
   await prisma.kPISnapshot.create({
     data: {
       projectId: project.id,
@@ -393,7 +494,7 @@ async function main() {
   });
 
   console.log(
-    'Seed completed: demo users, projects, memberships, work items, baseline and KPI data.',
+    'Seed completed: demo users, projects, memberships, work items, timesheets, cost entries, risks, baseline and KPI data.',
   );
 }
 
