@@ -2,10 +2,10 @@ import { prisma } from '@/lib/prisma';
 import { KpiType, Prisma, Role } from '@prisma/client';
 import { getLatestPerKpiType, getKpiHistoryFiltered } from '@/kpi/services/snapshotQueries';
 
-export class ProjectDashboardError extends Error {}
-export class ProjectAccessDeniedError extends Error {}
-export class ProjectNotFoundError extends Error {}
-export class InvalidProjectDashboardInputError extends Error {}
+export class ProjectDashboardError extends Error { }
+export class ProjectAccessDeniedError extends Error { }
+export class ProjectNotFoundError extends Error { }
+export class InvalidProjectDashboardInputError extends Error { }
 
 type ViewerContext = {
   userId: number;
@@ -25,6 +25,12 @@ type SnapshotDto = {
 export type ProjectDashboardResponse = {
   projectId: number;
   lastComputedAt: string | null;
+
+  flags: {
+    hasKpiDefinitions: boolean;
+    hasAnySnapshots: boolean;
+  };
+
   latest: {
     CPI: SnapshotDto | null;
     SPI: SnapshotDto | null;
@@ -103,6 +109,13 @@ export async function getProjectDashboardData(
 ): Promise<ProjectDashboardResponse> {
   await assertCanAccessProject(projectId, viewer);
 
+  const definitions = await prisma.kPIDefinition.findMany({
+    where: { projectId },
+    select: { id: true, type: true },
+  });
+
+  const hasKpiDefinitions = definitions.length > 0;
+
   const latestRows = await getLatestPerKpiType(projectId);
 
   const [cpiHistory, spiHistory, burnRateHistory] = await Promise.all([
@@ -127,6 +140,9 @@ export async function getProjectDashboardData(
     BURN_RATE: burnRateHistory.map(mapSnapshot),
   };
 
+  const hasAnySnapshots =
+    history.CPI.length > 0 || history.SPI.length > 0 || history.BURN_RATE.length > 0;
+
   const allLatestComputedAt = [
     latest.CPI?.computedAt ?? null,
     latest.SPI?.computedAt ?? null,
@@ -141,6 +157,10 @@ export async function getProjectDashboardData(
   return {
     projectId,
     lastComputedAt,
+    flags: {
+      hasKpiDefinitions,
+      hasAnySnapshots,
+    },
     latest,
     history,
   };

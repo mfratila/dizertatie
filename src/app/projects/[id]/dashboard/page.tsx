@@ -138,6 +138,28 @@ type PageProps = {
   params: Promise<{ id: string }>;
 };
 
+function Notice({
+  title,
+  message,
+}: {
+  title: string;
+  message: string;
+}) {
+  return (
+    <div
+      className="card"
+      style={{
+        marginBottom: 20,
+        borderColor: 'rgba(148, 163, 184, 0.35)',
+        background: 'rgba(148, 163, 184, 0.08)',
+      }}
+    >
+      <h2 style={{ marginTop: 0, marginBottom: 8 }}>{title}</h2>
+      <p style={{ margin: 0, opacity: 0.85 }}>{message}</p>
+    </div>
+  );
+}
+
 export default async function ProjectDashboardPage({ params }: PageProps) {
   const session = await requireAuth();
   const { id } = await params;
@@ -179,7 +201,19 @@ export default async function ProjectDashboardPage({ params }: PageProps) {
       </div>
 
       {canRecalculate ? <RecalculateKpiButton projectId={dashboard.projectId} /> : null}
+      {!dashboard.flags.hasKpiDefinitions ? (
+        <Notice
+          title="KPI configuration missing"
+          message="This project does not have KPI definitions yet. KPI current state and trend visualizations are unavailable until KPI definitions are configured."
+        />
+      ) : null}
 
+      {dashboard.flags.hasKpiDefinitions && !dashboard.flags.hasAnySnapshots ? (
+        <Notice
+          title="No KPI snapshots available"
+          message="KPI definitions exist, but no KPI snapshots have been computed yet. Use the Recalculate KPI action to generate the first KPI values."
+        />
+      ) : null}
       <div
         style={{
           display: 'grid',
