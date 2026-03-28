@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/page-guards';
 import { Role } from '@prisma/client';
 import CreateProjectInline from './_components/CreateProjectInline';
 import { formatDate, formatMoney } from './_utils/utils';
+import Link from 'next/link';
 
 export default async function ProjectsPage() {
   const session = await requireAuth();
@@ -70,7 +71,7 @@ export default async function ProjectsPage() {
         <tbody>
           {projects.map((p) => (
             <tr key={p.id}>
-              <td style={{ padding: 8 }}>{p.name}</td>
+              <td style={{ padding: 8 }}><Link href={`/projects/${p.id}/`}>{p.name}</Link></td>
               <td style={{ padding: 8 }}>{String(p.status)}</td>
               <td style={{ padding: 8 }}>
                 {formatDate(p.startDate)} - {formatDate(p.endDate)}
