@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireAuth } from '@/lib/page-guards';
 import KpiLineChart from './_components/KpiLineChart';
+import RecalculateKpiButton from './_components/RecalculateKpiButton';
+import { Role } from '@prisma/client';
 import { getProjectDashboardData } from '@/lib/project-dashboard/project-dashboard';
 
 type RagStatus = 'GREEN' | 'YELLOW' | 'RED' | 'NA';
@@ -155,6 +157,8 @@ export default async function ProjectDashboardPage({ params }: PageProps) {
     notFound();
   }
 
+  const canRecalculate = session.user.role === Role.ADMIN || session.user.role === Role.PM;
+
   const cpi = dashboard.latest.CPI;
   const spi = dashboard.latest.SPI;
   const burnRate = dashboard.latest.BURN_RATE;
@@ -173,6 +177,8 @@ export default async function ProjectDashboardPage({ params }: PageProps) {
           Last computed at: {dashboard.lastComputedAt ?? 'N/A'}
         </p>
       </div>
+
+      {canRecalculate ? <RecalculateKpiButton projectId={dashboard.projectId} /> : null}
 
       <div
         style={{
