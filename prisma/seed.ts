@@ -218,7 +218,7 @@ async function main() {
 
   // --- Cleanup demo children for idempotency ---
   const existingWorkItems = await prisma.workItem.findMany({
-    where: { projectId: project.id },
+    where: { projectId: { in: [project.id, project2.id] } },
     select: { id: true },
   });
 
@@ -231,26 +231,43 @@ async function main() {
       });
     }
 
-    await tx.risk.deleteMany({ where: { projectId: project.id } });
-    await tx.costEntry.deleteMany({ where: { projectId: project.id } });
-    await tx.baseline.deleteMany({ where: { projectId: project.id } });
-    await tx.kPISnapshot.deleteMany({ where: { projectId: project.id } });
-    await tx.workItem.deleteMany({ where: { projectId: project.id } });
+    await tx.risk.deleteMany({
+      where: { projectId: { in: [project.id, project2.id] } },
+    });
+
+    await tx.costEntry.deleteMany({
+      where: { projectId: { in: [project.id, project2.id] } },
+    });
+
+    await tx.baseline.deleteMany({
+      where: { projectId: { in: [project.id, project2.id] } },
+    });
+
+    await tx.kPISnapshot.deleteMany({
+      where: { projectId: { in: [project.id, project2.id] } },
+    });
+
+    await tx.workItem.deleteMany({
+      where: { projectId: { in: [project.id, project2.id] } },
+    });
   });
 
-  // Optional cleanup for Project Beta work items
-  await prisma.workItem.deleteMany({
-    where: { projectId: project2.id },
-  });
-
-  // 4) Baseline
-  await prisma.baseline.create({
-    data: {
-      projectId: project.id,
-      plannedValueTotal: new Prisma.Decimal('100000.00'),
-      startDate: projectStart,
-      endDate: projectEnd,
-    },
+  // 4) Baselines
+  await prisma.baseline.createMany({
+    data: [
+      {
+        projectId: project.id,
+        plannedValueTotal: new Prisma.Decimal('100000.00'),
+        startDate: projectStart,
+        endDate: projectEnd,
+      },
+      {
+        projectId: project2.id,
+        plannedValueTotal: new Prisma.Decimal('100000.00'),
+        startDate: projectStart,
+        endDate: projectEnd,
+      },
+    ],
   });
 
   // 5) WorkItems - Project Alpha
@@ -280,7 +297,7 @@ async function main() {
     },
   });
 
-  const workItem3 = await prisma.workItem.create({
+  await prisma.workItem.create({
     data: {
       projectId: project.id,
       title: 'Final Validation',
@@ -415,7 +432,27 @@ async function main() {
     ],
   });
 
-  // 8) Risks - Project Alpha
+  // Optional: a couple of beta costs so project2 can evolve later if needed
+  await prisma.costEntry.createMany({
+    data: [
+      {
+        projectId: project2.id,
+        date: new Date('2026-01-18T00:00:00.000Z'),
+        amount: new Prisma.Decimal('900.00'),
+        category: 'Labor',
+        note: 'Initial setup effort for Project Beta.',
+      },
+      {
+        projectId: project2.id,
+        date: new Date('2026-02-02T00:00:00.000Z'),
+        amount: new Prisma.Decimal('600.00'),
+        category: 'Tools',
+        note: 'Beta tooling setup.',
+      },
+    ],
+  });
+
+  // 8) Risks
   await prisma.risk.createMany({
     data: [
       {
@@ -436,11 +473,20 @@ async function main() {
         ownerUserId: member.id,
         note: 'Closed after environment configuration was stabilized.',
       },
+      {
+        projectId: project2.id,
+        title: 'Resource availability uncertainty',
+        probability: 3,
+        impact: 3,
+        status: RiskStatus.OPEN,
+        ownerUserId: member2.id,
+        note: 'Open risk for demo visibility in Project Beta.',
+      },
     ],
   });
 
-  // 9) KPI definitions
-  const cpiDef = await prisma.kPIDefinition.upsert({
+  // 9) KPI Definitions - Project Alpha
+  const alphaCpiDef = await prisma.kPIDefinition.upsert({
     where: { projectId_type: { projectId: project.id, type: KpiType.CPI } },
     update: {
       thresholdGreen: new Prisma.Decimal('1.00'),
@@ -454,7 +500,7 @@ async function main() {
     },
   });
 
-  await prisma.kPIDefinition.upsert({
+  const alphaSpiDef = await prisma.kPIDefinition.upsert({
     where: { projectId_type: { projectId: project.id, type: KpiType.SPI } },
     update: {
       thresholdGreen: new Prisma.Decimal('1.00'),
@@ -468,33 +514,136 @@ async function main() {
     },
   });
 
-  await prisma.kPIDefinition.upsert({
+  const alphaBurnRateDef = await prisma.kPIDefinition.upsert({
     where: { projectId_type: { projectId: project.id, type: KpiType.BURN_RATE } },
     update: {
-      thresholdGreen: new Prisma.Decimal('0.00'),
-      thresholdYellow: new Prisma.Decimal('0.00'),
+      thresholdGreen: new Prisma.Decimal('1500.00'),
+      thresholdYellow: new Prisma.Decimal('2500.00'),
     },
     create: {
       projectId: project.id,
       type: KpiType.BURN_RATE,
-      thresholdGreen: new Prisma.Decimal('0.00'),
-      thresholdYellow: new Prisma.Decimal('0.00'),
+      thresholdGreen: new Prisma.Decimal('1500.00'),
+      thresholdYellow: new Prisma.Decimal('2500.00'),
     },
   });
 
-  // 10) KPI snapshot demo
-  await prisma.kPISnapshot.create({
-    data: {
-      projectId: project.id,
-      kpiDefinitionId: cpiDef.id,
-      value: new Prisma.Decimal('0.95'),
-      status: KpiStatus.YELLOW,
-      computedAt: new Date('2026-01-13T00:00:00.000Z'),
+  // 9b) KPI Definitions - Project Beta
+  const betaCpiDef = await prisma.kPIDefinition.upsert({
+    where: { projectId_type: { projectId: project2.id, type: KpiType.CPI } },
+    update: {
+      thresholdGreen: new Prisma.Decimal('1.00'),
+      thresholdYellow: new Prisma.Decimal('0.90'),
     },
+    create: {
+      projectId: project2.id,
+      type: KpiType.CPI,
+      thresholdGreen: new Prisma.Decimal('1.00'),
+      thresholdYellow: new Prisma.Decimal('0.90'),
+    },
+  });
+
+  const betaSpiDef = await prisma.kPIDefinition.upsert({
+    where: { projectId_type: { projectId: project2.id, type: KpiType.SPI } },
+    update: {
+      thresholdGreen: new Prisma.Decimal('1.00'),
+      thresholdYellow: new Prisma.Decimal('0.90'),
+    },
+    create: {
+      projectId: project2.id,
+      type: KpiType.SPI,
+      thresholdGreen: new Prisma.Decimal('1.00'),
+      thresholdYellow: new Prisma.Decimal('0.90'),
+    },
+  });
+
+  const betaBurnRateDef = await prisma.kPIDefinition.upsert({
+    where: { projectId_type: { projectId: project2.id, type: KpiType.BURN_RATE } },
+    update: {
+      thresholdGreen: new Prisma.Decimal('1500.00'),
+      thresholdYellow: new Prisma.Decimal('2500.00'),
+    },
+    create: {
+      projectId: project2.id,
+      type: KpiType.BURN_RATE,
+      thresholdGreen: new Prisma.Decimal('1500.00'),
+      thresholdYellow: new Prisma.Decimal('2500.00'),
+    },
+  });
+
+  // 10) KPI Snapshots - demo data for Portfolio Dashboard
+  const dashboardComputedAt = new Date('2026-03-20T10:00:00.000Z');
+
+  await prisma.kPISnapshot.createMany({
+    data: [
+      // Project Alpha
+      {
+        projectId: project.id,
+        kpiDefinitionId: alphaCpiDef.id,
+        computedAt: dashboardComputedAt,
+        value: new Prisma.Decimal('0.95'),
+        status: KpiStatus.YELLOW,
+        ev: new Prisma.Decimal('38000.00'),
+        pv: new Prisma.Decimal('42000.00'),
+        ac: new Prisma.Decimal('40000.00'),
+      },
+      {
+        projectId: project.id,
+        kpiDefinitionId: alphaSpiDef.id,
+        computedAt: dashboardComputedAt,
+        value: null,
+        status: KpiStatus.NA,
+        ev: new Prisma.Decimal('38000.00'),
+        pv: null,
+        ac: new Prisma.Decimal('40000.00'),
+      },
+      {
+        projectId: project.id,
+        kpiDefinitionId: alphaBurnRateDef.id,
+        computedAt: dashboardComputedAt,
+        value: null,
+        status: KpiStatus.NA,
+        ev: new Prisma.Decimal('38000.00'),
+        pv: new Prisma.Decimal('42000.00'),
+        ac: new Prisma.Decimal('40000.00'),
+      },
+
+      // Project Beta
+      {
+        projectId: project2.id,
+        kpiDefinitionId: betaCpiDef.id,
+        computedAt: dashboardComputedAt,
+        value: null,
+        status: KpiStatus.NA,
+        ev: null,
+        pv: null,
+        ac: null,
+      },
+      {
+        projectId: project2.id,
+        kpiDefinitionId: betaSpiDef.id,
+        computedAt: dashboardComputedAt,
+        value: null,
+        status: KpiStatus.NA,
+        ev: null,
+        pv: null,
+        ac: null,
+      },
+      {
+        projectId: project2.id,
+        kpiDefinitionId: betaBurnRateDef.id,
+        computedAt: dashboardComputedAt,
+        value: null,
+        status: KpiStatus.NA,
+        ev: null,
+        pv: null,
+        ac: null,
+      },
+    ],
   });
 
   console.log(
-    'Seed completed: demo users, projects, memberships, work items, timesheets, cost entries, risks, baseline and KPI data.',
+    'Seed completed: demo users, projects, memberships, work items, timesheets, cost entries, risks, baselines and KPI dashboard data.',
   );
 }
 
