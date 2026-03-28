@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireAuth } from '@/lib/page-guards';
+import KpiLineChart from './_components/KpiLineChart';
 import { getProjectDashboardData } from '@/lib/project-dashboard/project-dashboard';
 
 type RagStatus = 'GREEN' | 'YELLOW' | 'RED' | 'NA';
@@ -201,6 +202,25 @@ export default async function ProjectDashboardPage({ params }: PageProps) {
           unit="currency/day"
           naMessage="Nu există date suficiente pentru Burn Rate."
         />
+      </div>
+      <div style={{ marginTop: 24 }}>
+        <h2 style={{ marginBottom: 16 }}>KPI Trends</h2>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr',
+            gap: 16,
+          }}
+        >
+          <KpiLineChart title="CPI în timp" points={dashboard.history.CPI} />
+          <KpiLineChart title="SPI în timp" points={dashboard.history.SPI} />
+          <KpiLineChart
+            title="Burn Rate în timp"
+            points={dashboard.history.BURN_RATE}
+            unitLabel="currency/day"
+          />
+        </div>
       </div>
     </div>
   );
