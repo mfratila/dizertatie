@@ -1,31 +1,9 @@
 import { prisma } from '@/lib/prisma';
-import { KpiStatus, KpiType, Prisma, Role } from '@prisma/client';
+import { PortfolioProjectItem, PortfolioDashboardResponse, PortfolioLatestKpiItem } from '@/lib/dashboard/types';
+import { KpiStatus, Prisma, Role } from '@prisma/client';
 
 export class PortfolioDashboardError extends Error {}
 export class InvalidViewerError extends Error {}
-
-export type PortfolioLatestKpiItem = {
-  type: KpiType;
-  value: number | null;
-  status: KpiStatus;
-  computedAt: string;
-};
-
-export type PortfolioProjectItem = {
-  projectId: number;
-  name: string;
-  status: string;
-  latestKpis: {
-    CPI: PortfolioLatestKpiItem | null;
-    SPI: PortfolioLatestKpiItem | null;
-    BURN_RATE: PortfolioLatestKpiItem | null;
-  };
-  overallHealth: KpiStatus;
-};
-
-export type PortfolioDashboardResponse = {
-  items: PortfolioProjectItem[];
-};
 
 type ViewerContext = {
   userId: number;
