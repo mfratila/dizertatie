@@ -57,13 +57,13 @@ describe('Integration: persistKpiSnapshots()', () => {
       data: [
         {
           projectId: project.id,
-          name: 'WI-1',
+          title: 'WI-1',
           plannedEndDate: d('2026-01-05T00:00:00Z'),
           progressPercent: 50,
         },
         {
           projectId: project.id,
-          name: 'WI-2',
+          title: 'WI-2',
           plannedEndDate: d('2026-01-10T00:00:00Z'),
           progressPercent: 100,
         },
