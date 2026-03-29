@@ -1,0 +1,240 @@
+# Validation Plan (MVP) – Specificație
+
+## 1. Obiectivul planului de validare
+
+Scopul planului de validare este de a demonstra, în mod riguros și reproductibil, că sistemul dezvoltat își atinge obiectivele funcționale și analitice definite în cadrul lucrării de dizertație, respectiv:
+
+- colectarea corectă a datelor de execuție,
+- calculul determinist și corect al indicatorilor KPI (CPI, SPI, Burn Rate),
+- persistența istoricului prin snapshot-uri,
+- reflectarea fidelă a rezultatelor în dashboard-uri,
+- aplicarea corectă a regulilor de acces (RBAC).
+
+Validarea este realizată printr-un set controlat de scenarii, bazate pe date deterministe și verificabile, care permit corelarea directă între input, proces și output.
+
+---
+
+## 2. Domeniul validării (Scope)
+
+Planul de validare acoperă următoarele componente ale sistemului:
+
+### 2.1. Colectarea datelor de execuție
+
+Se validează că sistemul poate colecta și persista corect:
+
+- date de progres (WorkItem),
+- date de timp (Timesheet),
+- date de cost (CostEntry),
+
+care constituie baza pentru calculul indicatorilor KPI.
+
+CostEntry reprezintă sursa directă pentru AC (Actual Cost), utilizat în KPI Engine.
+
+---
+
+### 2.2. KPI Engine (core correctness)
+
+Se validează corectitudinea calculului pentru:
+
+- PV (Planned Value)
+- EV (Earned Value)
+- AC (Actual Cost)
+- CPI = EV / AC
+- SPI = EV / PV
+- Burn Rate = AC / elapsedDays
+
+Se verifică explicit:
+
+- corectitudinea numerică,
+- tratarea cazurilor de diviziune la zero (→ NA),
+- consistența rezultatelor la recalculări succesive.
+
+---
+
+### 2.3. Persistența și istoricul KPI (Snapshots)
+
+Se validează că:
+
+- fiecare recalcul KPI generează un nou snapshot (fără overwrite),
+- snapshot-urile sunt ordonate cronologic,
+- istoricul este utilizabil pentru analiză temporală.
+
+---
+
+### 2.4. Dashboard-uri manageriale (DSS layer)
+
+Se validează că dashboard-urile:
+
+- reflectă fidel valorile din snapshot-uri,
+- afișează corect stările RAG,
+- redau corect evoluția în timp (trenduri),
+- nu introduc logică nouă (strict read-only layer).
+
+---
+
+### 2.5. Controlul accesului (RBAC)
+
+Se validează că:
+
+- utilizatorii văd doar proiectele permise,
+- doar rolurile ADMIN și PM pot recalcula KPI,
+- rolurile MEMBER și VIEWER au acces read-only.
+
+---
+
+## 3. Metrici și indicatori validați
+
+Validarea utilizează exemple numerice explicite pentru următoarele variabile:
+
+- BAC (Budget at Completion)
+- PV (Planned Value)
+- EV (Earned Value)
+- AC (Actual Cost)
+- CPI
+- SPI
+- Burn Rate
+
+Se definesc minimum două momente de calcul:
+
+- T1 (before) – stare inițială
+- T2 (after) – după introducerea de noi date de execuție
+
+---
+
+## 4. Model de validare: Input → Proces → Output
+
+Validarea este structurată pe un model determinist de tip pipeline.
+
+### 4.1. Input
+
+Date introduse în sistem:
+
+- WorkItem.progressPercent
+- CostEntry.amount
+- Timesheet.hours (contextual)
+- Baseline (BAC, perioadă)
+
+---
+
+### 4.2. Proces
+
+Execuția KPI Engine:
+
+1. extragere date din bază
+2. calcul EV, PV, AC
+3. evaluare formule KPI
+4. clasificare RAG
+5. persistare snapshot
+
+---
+
+### 4.3. Output
+
+Rezultatele validate sunt:
+
+- valori KPI (CPI, SPI, Burn Rate)
+- status RAG
+- snapshot-uri persistate
+- reprezentare în dashboard (current + trend)
+
+---
+
+## 5. Scenarii de validare (high-level)
+
+### Scenariul 1 – Core KPI correctness
+
+**Obiectiv:** verificarea formulelor KPI
+
+Pași:
+
+1. Se configurează baseline (BAC)
+2. Se introduc work items și progres
+3. Se introduc costuri (AC)
+4. Se rulează recalcul KPI
+
+Așteptări:
+
+- valorile EV, PV, AC sunt corecte
+- CPI și SPI respectă formulele
+- rezultatele coincid cu calcul manual
+
+---
+
+### Scenariul 2 – Before / After evolution
+
+**Obiectiv:** validarea evoluției KPI
+
+Pași:
+
+1. Se capturează snapshot T1
+2. Se adaugă costuri și/sau progres
+3. Se recalculează KPI → snapshot T2
+
+Așteptări:
+
+- T2 reflectă modificările
+- trendurile din dashboard sunt consistente
+- nu există overwrite de snapshot
+
+---
+
+### Scenariul 3 – Dashboard consistency
+
+**Obiectiv:** validarea DSS layer
+
+Așteptări:
+
+- dashboard = snapshot (1:1)
+- RAG este corect
+- trendurile respectă istoricul
+- valorile NA sunt tratate corect (nu 0)
+
+---
+
+### Scenariul 4 – RBAC enforcement
+
+**Obiectiv:** validarea controlului accesului
+
+Teste:
+
+- MEMBER nu poate recalcula KPI
+- VIEWER nu poate modifica date
+- PM poate recalcula doar pe proiectele proprii
+- ADMIN are acces complet
+
+---
+
+## 6. Artefacte rezultate din validare
+
+Planul produce următoarele artefacte pentru disertație:
+
+- tabele cu valori KPI (T1 vs T2)
+- export CSV (snapshot-uri)
+- capturi dashboard (portofoliu + proiect)
+- rezultate teste (unit + RBAC + E2E)
+- corelare explicită input → output
+
+---
+
+## 7. Alinierea cu obiectivele lucrării
+
+Planul de validare demonstrează explicit:
+
+- corectitudinea implementării KPI Engine
+- integrarea modulelor (execution → KPI → dashboard)
+- suportul decizional oferit de dashboard-uri
+- controlul accesului și securitatea funcțională
+
+---
+
+## 8. Concluzie
+
+Planul de validare este:
+
+- determinist (bazat pe date controlate)
+- reproductibil (prin seed + runbook)
+- auditabil (prin snapshot-uri)
+- aliniat academic (EVM + DSS)
+- suficient pentru MVP (fără complexitate inutilă)
+
+Acesta oferă baza pentru capitolul de validare experimentală din lucrare și pentru demonstrarea funcțională a sistemului.
