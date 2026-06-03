@@ -60,50 +60,6 @@ export default async function HomePage() {
           'radial-gradient(circle at top left, rgba(59, 130, 246, 0.18), transparent 34%), var(--background)',
       }}
     >
-      <header
-        style={{
-          maxWidth: 1120,
-          margin: '0 auto',
-          padding: '24px 20px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 16,
-        }}
-      >
-        <Link href="/" style={{ color: 'inherit', textDecoration: 'none', fontWeight: 800 }}>
-          KPI Tracker
-        </Link>
-
-        <nav style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <Link href="/api/health" style={{ color: 'inherit', opacity: 0.82 }}>
-            Health
-          </Link>
-
-          {isAuthenticated ? (
-            <span style={{ opacity: 0.82 }}>Autentificat ca {userLabel}</span>
-          ) : (
-            <Link href="/login" style={{ color: 'inherit', opacity: 0.82 }}>
-              Autentificare
-            </Link>
-          )}
-
-          <Link
-            href="/dashboard"
-            style={{
-              color: '#020617',
-              background: '#e5e7eb',
-              padding: '9px 14px',
-              borderRadius: 999,
-              textDecoration: 'none',
-              fontWeight: 700,
-            }}
-          >
-            {isAuthenticated ? 'Dashboard' : 'Deschide dashboard-ul'}
-          </Link>
-        </nav>
-      </header>
-
       <section
         style={{
           maxWidth: 1120,
