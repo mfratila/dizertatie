@@ -4,7 +4,7 @@ import { requireSession } from '@/lib/authz';
 import { Role } from '@prisma/client';
 
 type RouteContext = {
-  params: Promise<{ id: string }>;
+  params: Promise<{ workItemId: string }>;
 };
 
 export async function POST(_req: Request, context: RouteContext) {
@@ -18,10 +18,10 @@ export async function POST(_req: Request, context: RouteContext) {
   const actorUserId = Number(session.user.id);
   const actorRole = session.user.role;
 
-  const { id } = await context.params;
-  const workItemId = Number(id);
+  const { workItemId } = await context.params;
+  const parsedWorkItemId = Number(workItemId);
 
-  if (!Number.isInteger(workItemId)) {
+  if (!Number.isInteger(parsedWorkItemId)) {
     return NextResponse.json(
       { error: 'Bad Request', message: 'ID-ul activității este invalid.' },
       { status: 400 },
@@ -29,7 +29,7 @@ export async function POST(_req: Request, context: RouteContext) {
   }
 
   const current = await prisma.workItem.findUnique({
-    where: { id: workItemId },
+    where: { id: parsedWorkItemId },
     select: {
       id: true,
       archivedAt: true,
@@ -91,7 +91,7 @@ export async function POST(_req: Request, context: RouteContext) {
   }
 
   const archived = await prisma.workItem.update({
-    where: { id: workItemId },
+    where: { id: parsedWorkItemId },
     data: {
       archivedAt: new Date(),
     },

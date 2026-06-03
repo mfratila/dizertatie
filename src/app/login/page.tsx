@@ -2,17 +2,15 @@
 
 import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
 
 function mapAuthError(error?: string | null) {
-  // NextAuth folosește param `error` în query string pe redirect
-  // Pentru Credentials e frecvent: "CredentialsSignin"
   if (!error) return null;
   if (error === 'CredentialsSignin') return 'Email sau parola incorecte.';
   return 'Autentificarea a esuat. Incearca din nou.';
 }
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const errorMsg = useMemo(() => mapAuthError(searchParams.get('error')), [searchParams]);
@@ -27,6 +25,7 @@ export default function LoginPage() {
     setLocalError(null);
 
     const normalizedEmail = email.trim().toLowerCase();
+
     if (!normalizedEmail || !normalizedEmail.includes('@')) {
       setLocalError('Introdu un email valid.');
       return;
@@ -38,18 +37,21 @@ export default function LoginPage() {
     }
 
     setLoading(true);
+
     const res = await signIn('credentials', {
       email: normalizedEmail,
       password,
       redirect: false,
       callbackUrl: '/dashboard',
     });
+
     setLoading(false);
 
     if (!res) {
       setLocalError('Autentificarea a esuat. Incearca din nou.');
       return;
     }
+
     if (res.error) {
       setLocalError(mapAuthError(res.error) ?? 'Autentificarea a esuat');
       return;
@@ -96,5 +98,20 @@ export default function LoginPage() {
         </button>
       </form>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <main style={{ maxWidth: 420, margin: '40px auto', padding: 16 }}>
+          <h1>Login</h1>
+          <p>Se încarcă formularul...</p>
+        </main>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }
