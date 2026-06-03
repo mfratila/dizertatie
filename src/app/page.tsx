@@ -1,4 +1,8 @@
+import { getServerSession } from 'next-auth';
 import Link from 'next/link';
+import { authOptions } from '@/lib/authOptions';
+
+export const dynamic = 'force-dynamic';
 
 const features = [
   {
@@ -43,7 +47,11 @@ const roles = [
   'VIEWER: acces read-only la dashboard-uri',
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const session = await getServerSession(authOptions);
+  const isAuthenticated = Boolean(session?.user);
+  const userLabel = session?.user?.name ?? session?.user?.email ?? 'utilizator autentificat';
+
   return (
     <main
       style={{
@@ -71,9 +79,15 @@ export default function HomePage() {
           <Link href="/api/health" style={{ color: 'inherit', opacity: 0.82 }}>
             Health
           </Link>
-          <Link href="/login" style={{ color: 'inherit', opacity: 0.82 }}>
-            Autentificare
-          </Link>
+
+          {isAuthenticated ? (
+            <span style={{ opacity: 0.82 }}>Autentificat ca {userLabel}</span>
+          ) : (
+            <Link href="/login" style={{ color: 'inherit', opacity: 0.82 }}>
+              Autentificare
+            </Link>
+          )}
+
           <Link
             href="/dashboard"
             style={{
@@ -85,7 +99,7 @@ export default function HomePage() {
               fontWeight: 700,
             }}
           >
-            Deschide dashboard-ul
+            {isAuthenticated ? 'Dashboard' : 'Deschide dashboard-ul'}
           </Link>
         </nav>
       </header>
@@ -113,7 +127,9 @@ export default function HomePage() {
               background: 'var(--surface)',
             }}
           >
-            MVP pentru monitorizarea performanței proiectelor
+            {isAuthenticated
+              ? `Sesiune activă pentru ${userLabel}`
+              : 'MVP pentru monitorizarea performanței proiectelor'}
           </p>
 
           <h1
@@ -135,7 +151,7 @@ export default function HomePage() {
 
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 28 }}>
             <Link
-              href="/login"
+              href={isAuthenticated ? '/dashboard' : '/login'}
               style={{
                 color: '#020617',
                 background: '#e5e7eb',
@@ -145,10 +161,10 @@ export default function HomePage() {
                 fontWeight: 800,
               }}
             >
-              Intră în aplicație
+              {isAuthenticated ? 'Continuă către dashboard' : 'Autentifică-te'}
             </Link>
             <Link
-              href="/dashboard"
+              href={isAuthenticated ? '/dashboard/portfolio' : '/api/health'}
               style={{
                 color: 'inherit',
                 border: '1px solid var(--border)',
@@ -159,7 +175,7 @@ export default function HomePage() {
                 background: 'var(--surface)',
               }}
             >
-              Vezi dashboard-ul
+              {isAuthenticated ? 'Vezi portofoliul' : 'Verifică starea aplicației'}
             </Link>
           </div>
         </div>
