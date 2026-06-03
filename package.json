@@ -6,6 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "postinstall": "prisma generate",
+    "vercel-build": "prisma generate && next build",
     "lint": "eslint",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
