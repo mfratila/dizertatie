@@ -10,7 +10,7 @@ export default function ArchiveProjectButton({ projectId }: { projectId: number 
   const router = useRouter();
 
   async function onArchive() {
-    const confirmed = window.confirm('Are you sure you want to archive this project?');
+    const confirmed = window.confirm('Sigur vrei să arhivezi acest proiect?');
     if (!confirmed) return;
 
     setError(null);
@@ -30,14 +30,14 @@ export default function ArchiveProjectButton({ projectId }: { projectId: number 
   }
 
   return (
-    <div style={{ marginTop: 12 }}>
+    <div>
       <button
         type="button"
         onClick={onArchive}
         disabled={loading}
-        className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-amber-600 text-white hover:bg-amber-700 transition-colors font-medium shadow-sm"
+        className="inline-flex items-center justify-center px-4 py-2 rounded-full bg-amber-600 text-white hover:bg-amber-700 transition-colors font-medium shadow-sm"
       >
-        {loading ? 'Archiving...' : 'Archive'}
+        {loading ? 'Se arhivează...' : 'Arhivează proiectul'}
       </button>
 
       {error && <div style={{ marginTop: 8, color: 'crimson' }}>{error}</div>}
